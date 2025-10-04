@@ -11,7 +11,13 @@
       "Bash(wrangler kv namespace:*)",
       "Bash(wrangler whoami:*)",
       "Bash(wrangler d1 migrations apply:*)",
-      "Bash(pnpm install:*)"
+      "Bash(pnpm install:*)",
+      "Bash(cmd.exe /c deploy.bat)",
+      "Bash(wrangler deploy:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(pnpm build:*)",
+      "Bash(wrangler pages deploy:*)"
     ],
     "deny": [],
     "ask": []
