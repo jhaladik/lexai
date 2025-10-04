@@ -81,6 +81,13 @@ export function Debts() {
     },
   });
 
+  const verifyMutation = useMutation({
+    mutationFn: api.debts.verify,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['debts'] });
+    },
+  });
+
   const handleDebtorIcoLookup = async () => {
     if (!debtorIcoLookup || debtorIcoLookup.length !== 8) {
       setDebtorIcoError('IČO must be 8 digits');
@@ -853,6 +860,19 @@ export function Debts() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        {!['verified', 'initial_letter_sent', 'attorney_review'].includes(debt.status) && (
+                          <button
+                            onClick={() => {
+                              if (confirm('Verify this debt?')) {
+                                verifyMutation.mutate(debt.id);
+                              }
+                            }}
+                            disabled={verifyMutation.isPending}
+                            className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                          >
+                            {t('debts.verify', 'Verify')}
+                          </button>
+                        )}
                         {debt.status === 'verified' && !debt.notification_sent && (
                           <button
                             onClick={() => {

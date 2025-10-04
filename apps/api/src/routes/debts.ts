@@ -312,6 +312,46 @@ debtRoutes.put('/:id', async (c) => {
   }
 });
 
+// PUT /api/v1/debts/:id/verify - Verify debt (change status to verified)
+debtRoutes.put('/:id/verify', async (c) => {
+  const tenantId = c.get('tenantId');
+  const debtId = c.req.param('id');
+  const db = c.env.DB as D1Database;
+
+  try {
+    const debt = await db
+      .prepare(`SELECT status FROM debts WHERE id = ? AND tenant_id = ?`)
+      .bind(debtId, tenantId)
+      .first();
+
+    if (!debt) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Debt not found' } }, 404);
+    }
+
+    await db
+      .prepare(`UPDATE debts SET status = 'verified', verification_status = 'approved' WHERE id = ? AND tenant_id = ?`)
+      .bind(debtId, tenantId)
+      .run();
+
+    const updatedDebt = await db
+      .prepare(`
+        SELECT d.*, c.company_name as client_company, dt.type as debtor_type,
+        dt.first_name as debtor_first_name, dt.last_name as debtor_last_name, dt.company_name as debtor_company
+        FROM debts d
+        LEFT JOIN clients c ON d.client_id = c.id
+        LEFT JOIN debtors dt ON d.debtor_id = dt.id
+        WHERE d.id = ? AND d.tenant_id = ?
+      `)
+      .bind(debtId, tenantId)
+      .first();
+
+    return c.json({ data: updatedDebt });
+  } catch (error) {
+    console.error('Error verifying debt:', error);
+    return c.json({ error: { code: 'DATABASE_ERROR', message: 'Failed to verify debt' } }, 500);
+  }
+});
+
 // DELETE /api/v1/debts/:id - Delete debt
 debtRoutes.delete('/:id', async (c) => {
   const tenantId = c.get('tenantId');

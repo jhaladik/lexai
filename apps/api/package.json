@@ -9,14 +9,15 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "hono": "^4.3.0",
-    "zod": "^3.23.0",
     "@lexai/database": "workspace:*",
-    "@lexai/shared": "workspace:*"
+    "@lexai/shared": "workspace:*",
+    "hono": "^4.3.0",
+    "stripe": "^19.1.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240512.0",
-    "wrangler": "^3.57.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "wrangler": "^3.57.0"
   }
 }

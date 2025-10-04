@@ -21,7 +21,9 @@
       "WebSearch",
       "Bash(pnpm wrangler pages deploy:*)",
       "Bash(pnpm wrangler deploy:*)",
-      "Bash(pnpm wrangler d1 migrations apply:*)"
+      "Bash(pnpm wrangler d1 migrations apply:*)",
+      "Bash(pnpm run:*)",
+      "Bash(wrangler tail:*)"
     ],
     "deny": [],
     "ask": []

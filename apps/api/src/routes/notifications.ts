@@ -73,8 +73,8 @@ notificationRoutes.post('/debt/:debtId', async (c) => {
       .bind(tokenId, tenantId, debtId, token, now, expiresAt)
       .run();
 
-    // Generate portal link (will be public URL)
-    const portalLink = `${c.req.url.split('/api')[0]}/portal/${token}`;
+    // Generate portal link (web app URL)
+    const portalLink = `https://lexai.pages.dev/portal/${token}`;
 
     // Prepare email data
     const debtorName = debt.debtor_type === 'business'

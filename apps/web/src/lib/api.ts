@@ -261,6 +261,10 @@ export const api = {
       apiRequest(`/api/v1/debts/${id}`, {
         method: 'DELETE',
       }),
+    verify: (id: string) =>
+      apiRequest<any>(`/api/v1/debts/${id}/verify`, {
+        method: 'PUT',
+      }),
     bulkUpload: (csvContent: string) =>
       apiRequest<{
         message: string;

@@ -18,7 +18,7 @@ portalRoutes.get('/:token', async (c) => {
           c.address as client_address,
           c.city as client_city,
           c.postal_code as client_postal_code,
-          c.email as client_email,
+          u.email as client_email,
           dt.type as debtor_type,
           dt.first_name as debtor_first_name,
           dt.last_name as debtor_last_name,
@@ -26,6 +26,7 @@ portalRoutes.get('/:token', async (c) => {
         FROM portal_tokens pt
         LEFT JOIN debts d ON pt.debt_id = d.id
         LEFT JOIN clients c ON d.client_id = c.id
+        LEFT JOIN users u ON c.user_id = u.id
         LEFT JOIN debtors dt ON d.debtor_id = dt.id
         WHERE pt.token = ?
       `)

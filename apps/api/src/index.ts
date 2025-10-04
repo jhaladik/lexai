@@ -11,6 +11,7 @@ type Bindings = {
   SMTP2GO_API_KEY: string;
   OPENAI_API_KEY: string;
   STRIPE_SECRET_KEY: string;
+  STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;
 };
 
@@ -77,6 +78,18 @@ app.route('/api/v1/notifications', notificationRoutes);
 // Portal routes (public - no auth required)
 import { portalRoutes } from './routes/portal';
 app.route('/api/v1/portal', portalRoutes);
+
+// Payment routes (public - token-based auth)
+import { paymentRoutes } from './routes/payments';
+app.route('/api/v1/payments', paymentRoutes);
+
+// Payment plan routes (public - token-based auth)
+import { paymentPlanRoutes } from './routes/payment-plans';
+app.route('/api/v1/payment-plans', paymentPlanRoutes);
+
+// Dispute routes (public - token-based auth)
+import { disputeRoutes } from './routes/disputes';
+app.route('/api/v1/disputes', disputeRoutes);
 
 // 404 handler
 app.notFound((c) => {

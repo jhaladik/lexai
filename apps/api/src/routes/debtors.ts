@@ -197,21 +197,22 @@ debtorRoutes.post('/:id/notify', async (c) => {
       return c.json({ error: { code: 'NO_EMAIL', message: 'Debtor has no email address' } }, 400);
     }
 
-    // Fetch all verified debts for this debtor that haven't been notified
+    // Fetch all debts for this debtor that haven't been notified yet
+    // Allow any status except draft and pending_verification
     const debts = await db
       .prepare(`
         SELECT d.*, c.company_name as client_company
         FROM debts d
         LEFT JOIN clients c ON d.client_id = c.id
         WHERE d.debtor_id = ? AND d.tenant_id = ?
-        AND d.status = 'verified'
+        AND d.status NOT IN ('draft', 'pending_verification')
         AND (d.notification_sent IS NULL OR d.notification_sent = FALSE)
       `)
       .bind(debtorId, tenantId)
       .all();
 
     if (!debts.results || debts.results.length === 0) {
-      return c.json({ error: { code: 'NO_DEBTS', message: 'No verified debts to notify' } }, 400);
+      return c.json({ error: { code: 'NO_DEBTS', message: 'No debts ready to notify. Debts must be verified (not draft/pending_verification status)' } }, 400);
     }
 
     const debtsList = debts.results;
@@ -227,7 +228,7 @@ debtorRoutes.post('/:id/notify', async (c) => {
       .bind(tokenId, tenantId, debtsList[0].id, token, now, expiresAt)
       .run();
 
-    const portalLink = `${c.req.url.split('/api')[0]}/portal/${token}`;
+    const portalLink = `https://lexai.pages.dev/portal/${token}`;
 
     // Prepare email data
     const debtorName = debtor.type === 'business'
