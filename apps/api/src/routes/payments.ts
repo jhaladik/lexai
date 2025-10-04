@@ -134,14 +134,37 @@ paymentRoutes.post('/webhook', async (c) => {
     }
 
     const body = await c.req.text();
-    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
 
     const db = c.env.DB as D1Database;
 
     // Handle payment intent succeeded
     if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      let paymentIntent = event.data.object as Stripe.PaymentIntent;
+
+      console.log('Payment webhook received:', {
+        payment_id: paymentIntent.id,
+        amount: paymentIntent.amount,
+        has_metadata: !!paymentIntent.metadata,
+      });
+
+      // If metadata is missing in webhook, fetch the full payment intent
+      if (!paymentIntent.metadata || !paymentIntent.metadata.debt_id) {
+        console.log('Metadata missing in webhook, fetching payment intent from Stripe...');
+        const stripe = new Stripe(stripeApiKey, {
+          apiVersion: '2024-12-18.acacia',
+        });
+        paymentIntent = await stripe.paymentIntents.retrieve(paymentIntent.id);
+        console.log('Fetched payment intent metadata:', paymentIntent.metadata);
+      }
+
       const metadata = paymentIntent.metadata;
+
+      // Check if metadata exists
+      if (!metadata || !metadata.debt_id) {
+        console.error('No metadata found even after fetching:', paymentIntent.id);
+        return c.json({ received: true, error: 'No metadata' });
+      }
 
       // Create payment record
       const paymentId = `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
