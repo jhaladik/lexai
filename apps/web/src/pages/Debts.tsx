@@ -8,6 +8,7 @@ export function Debts() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [editingDebt, setEditingDebt] = useState<any | null>(null);
   const [copyingDebt, setCopyingDebt] = useState<any | null>(null);
   const [debtorType, setDebtorType] = useState<'existing' | 'new'>('existing');
@@ -15,6 +16,7 @@ export function Debts() {
   const [debtorIcoLookup, setDebtorIcoLookup] = useState('');
   const [debtorIcoLoading, setDebtorIcoLoading] = useState(false);
   const [debtorIcoError, setDebtorIcoError] = useState<string | null>(null);
+  const [bulkUploadResults, setBulkUploadResults] = useState<any | null>(null);
 
   const { data: debts, isLoading, error } = useQuery({
     queryKey: ['debts'],
@@ -57,6 +59,25 @@ export function Debts() {
     mutationFn: api.debts.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
+    },
+  });
+
+  const bulkUploadMutation = useMutation({
+    mutationFn: api.debts.bulkUpload,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['debts'] });
+      setBulkUploadResults(data.results);
+    },
+  });
+
+  const sendNotificationMutation = useMutation({
+    mutationFn: api.notifications.sendDebtNotification,
+    onSuccess: (data) => {
+      alert(`Notification sent to: ${data.sent_to}\n\nPortal link: ${data.portal_link}`);
+      queryClient.invalidateQueries({ queryKey: ['debts'] });
+    },
+    onError: (error) => {
+      alert(`Failed to send notification: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
   });
 
@@ -185,6 +206,18 @@ export function Debts() {
     setShowAddForm(false);
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const csvContent = event.target?.result as string;
+      bulkUploadMutation.mutate(csvContent);
+    };
+    reader.readAsText(file);
+  };
+
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -200,17 +233,117 @@ export function Debts() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">{t('debts.title', 'Debts')}</h1>
-        <button
-          onClick={() => {
-            setEditingDebt(null);
-            setCopyingDebt(null);
-            setShowAddForm(!showAddForm);
-          }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          {showAddForm ? t('common.cancel', 'Cancel') : t('debts.addDebt', 'Add Debt')}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setShowBulkUpload(!showBulkUpload);
+              setShowAddForm(false);
+            }}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+          >
+            {t('debts.bulkUpload', 'Bulk Upload')}
+          </button>
+          <button
+            onClick={() => {
+              setEditingDebt(null);
+              setCopyingDebt(null);
+              setShowAddForm(!showAddForm);
+              setShowBulkUpload(false);
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            {showAddForm ? t('common.cancel', 'Cancel') : t('debts.addDebt', 'Add Debt')}
+          </button>
+        </div>
       </div>
+
+      {showBulkUpload && (
+        <div className="bg-white p-6 rounded-lg shadow mb-6">
+          <h2 className="text-xl font-semibold mb-4">{t('debts.bulkUpload', 'Bulk Upload Debts')}</h2>
+
+          <div className="mb-4">
+            <button
+              onClick={() => api.debts.downloadTemplate()}
+              className="text-blue-600 hover:text-blue-700 underline"
+            >
+              {t('debts.downloadTemplate', 'Download CSV Template')}
+            </button>
+          </div>
+
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="csv-upload"
+            />
+            <label
+              htmlFor="csv-upload"
+              className="cursor-pointer inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+            >
+              {t('debts.selectCSV', 'Select CSV File')}
+            </label>
+            <p className="text-sm text-gray-500 mt-2">
+              {t('debts.maxRows', 'Maximum 500 rows per upload')}
+            </p>
+          </div>
+
+          {bulkUploadMutation.isPending && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+              <p className="text-blue-700">{t('debts.uploading', 'Uploading and processing...')}</p>
+            </div>
+          )}
+
+          {bulkUploadMutation.isError && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <h3 className="text-red-800 font-semibold">{t('common.error', 'Error')}</h3>
+              <p className="text-red-600 text-sm mt-1">
+                {bulkUploadMutation.error instanceof Error ? bulkUploadMutation.error.message : 'Upload failed'}
+              </p>
+            </div>
+          )}
+
+          {bulkUploadResults && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <h3 className="text-green-800 font-semibold mb-2">{t('debts.uploadComplete', 'Upload Complete')}</h3>
+              <div className="text-sm space-y-1">
+                <p>Total: {bulkUploadResults.total}</p>
+                <p className="text-green-700">✓ Successful: {bulkUploadResults.successful}</p>
+                {bulkUploadResults.flagged > 0 && (
+                  <p className="text-yellow-700">⚠ Flagged for review: {bulkUploadResults.flagged}</p>
+                )}
+                {bulkUploadResults.failed > 0 && (
+                  <p className="text-red-700">✗ Failed: {bulkUploadResults.failed}</p>
+                )}
+              </div>
+
+              {bulkUploadResults.errors.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold text-sm mb-2">{t('debts.errors', 'Errors')}:</h4>
+                  <div className="max-h-40 overflow-y-auto text-sm space-y-1">
+                    {bulkUploadResults.errors.map((err: any, idx: number) => (
+                      <p key={idx} className="text-red-600">
+                        Row {err.row}: {err.message}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setBulkUploadResults(null);
+                  setShowBulkUpload(false);
+                }}
+                className="mt-4 text-sm text-blue-600 hover:text-blue-700 underline"
+              >
+                {t('common.close', 'Close')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {showAddForm && (
         <div className="bg-white p-6 rounded-lg shadow mb-6">
@@ -220,28 +353,32 @@ export function Debts() {
              t('debts.addDebt', 'Add Debt')}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Client Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('debts.client', 'Client')} *
-              </label>
-              <select
-                name="client_id"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{t('debts.selectClient', 'Select Client')}</option>
-                {clients?.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.company_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Client Selection - Hidden when editing, shown when creating/copying */}
+            {!editingDebt && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('debts.client', 'Client')} *
+                </label>
+                <select
+                  name="client_id"
+                  required
+                  defaultValue={copyingDebt?.client_id || ''}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">{t('debts.selectClient', 'Select Client')}</option>
+                  {clients?.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.company_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-            {/* Debtor Selection */}
-            <div className="border-t pt-4">
-              <h3 className="text-lg font-medium mb-3">{t('debts.debtorInfo', 'Debtor Information')}</h3>
+            {/* Debtor Selection - Hidden when editing */}
+            {!editingDebt && (
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-medium mb-3">{t('debts.debtorInfo', 'Debtor Information')}</h3>
 
               <div className="mb-4">
                 <label className="inline-flex items-center mr-6">
@@ -462,7 +599,8 @@ export function Debts() {
                   </div>
                 </div>
               )}
-            </div>
+              </div>
+            )}
 
             {/* Debt Details */}
             <div className="border-t pt-4">
@@ -476,6 +614,7 @@ export function Debts() {
                   <select
                     name="debt_type"
                     required
+                    defaultValue={(editingDebt || copyingDebt)?.debt_type || ''}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Type</option>
@@ -495,6 +634,7 @@ export function Debts() {
                   <input
                     type="text"
                     name="reference_number"
+                    defaultValue={(editingDebt || copyingDebt)?.reference_number || ''}
                     placeholder="Invoice #, Contract #, etc."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -510,6 +650,7 @@ export function Debts() {
                     required
                     min="0"
                     step="0.01"
+                    defaultValue={(editingDebt || copyingDebt)?.original_amount || ''}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -520,7 +661,7 @@ export function Debts() {
                   </label>
                   <select
                     name="currency"
-                    defaultValue="CZK"
+                    defaultValue={(editingDebt || copyingDebt)?.currency || 'CZK'}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="CZK">CZK</option>
@@ -536,6 +677,7 @@ export function Debts() {
                   <input
                     type="date"
                     name="invoice_date"
+                    defaultValue={(editingDebt || copyingDebt)?.invoice_date ? new Date((editingDebt || copyingDebt).invoice_date).toISOString().split('T')[0] : ''}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -547,6 +689,7 @@ export function Debts() {
                   <input
                     type="date"
                     name="due_date"
+                    defaultValue={(editingDebt || copyingDebt)?.due_date ? new Date((editingDebt || copyingDebt).due_date).toISOString().split('T')[0] : ''}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -559,6 +702,7 @@ export function Debts() {
                 <textarea
                   name="notes"
                   rows={3}
+                  defaultValue={(editingDebt || copyingDebt)?.notes || ''}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Additional information about the debt..."
                 />
@@ -578,6 +722,7 @@ export function Debts() {
                     type="checkbox"
                     name="has_contract"
                     className="mr-2"
+                    defaultChecked={(editingDebt || copyingDebt)?.has_contract || false}
                   />
                   <span className="text-sm">{t('debts.hasContract', 'Contract / Lease Agreement')}</span>
                 </label>
@@ -587,6 +732,7 @@ export function Debts() {
                     type="checkbox"
                     name="has_invoice"
                     className="mr-2"
+                    defaultChecked={(editingDebt || copyingDebt)?.has_invoice || false}
                   />
                   <span className="text-sm">{t('debts.hasInvoice', 'Invoice')}</span>
                 </label>
@@ -596,6 +742,7 @@ export function Debts() {
                     type="checkbox"
                     name="has_delivery_proof"
                     className="mr-2"
+                    defaultChecked={(editingDebt || copyingDebt)?.has_delivery_proof || false}
                   />
                   <span className="text-sm">{t('debts.hasDeliveryProof', 'Delivery Proof')}</span>
                 </label>
@@ -605,6 +752,7 @@ export function Debts() {
                     type="checkbox"
                     name="has_communication_log"
                     className="mr-2"
+                    defaultChecked={(editingDebt || copyingDebt)?.has_communication_log || false}
                   />
                   <span className="text-sm">{t('debts.hasCommunicationLog', 'Communication Log')}</span>
                 </label>
@@ -705,6 +853,19 @@ export function Debts() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        {debt.status === 'verified' && !debt.notification_sent && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Send notification to debtor?`)) {
+                                sendNotificationMutation.mutate(debt.id);
+                              }
+                            }}
+                            disabled={sendNotificationMutation.isPending}
+                            className="text-purple-600 hover:text-purple-900 disabled:opacity-50"
+                          >
+                            {t('debts.notify', 'Notify')}
+                          </button>
+                        )}
                         <button
                           onClick={() => handleCopy(debt)}
                           className="text-green-600 hover:text-green-900"

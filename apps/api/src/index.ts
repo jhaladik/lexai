@@ -70,6 +70,14 @@ app.route('/api/v1/debtors', debtorRoutes);
 import { integrationRoutes } from './routes/integrations';
 app.route('/api/v1/integrations', integrationRoutes);
 
+// Notification routes (protected)
+import { notificationRoutes } from './routes/notifications';
+app.route('/api/v1/notifications', notificationRoutes);
+
+// Portal routes (public - no auth required)
+import { portalRoutes } from './routes/portal';
+app.route('/api/v1/portal', portalRoutes);
+
 // 404 handler
 app.notFound((c) => {
   return c.json({ error: 'Not Found' }, 404);

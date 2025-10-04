@@ -50,13 +50,19 @@ async function apiRequest<T>(
   const url = `${API_BASE_URL}${endpoint}`;
   const token = getCFAccessToken();
 
+  const headers: Record<string, string> = {
+    ...(token ? { 'CF-Access-JWT-Assertion': token } : {}),
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  // Only add Content-Type if not already set (for CSV uploads)
+  if (!options.headers || !('Content-Type' in options.headers)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'CF-Access-JWT-Assertion': token } : {}),
-      ...options.headers,
-    },
+    headers,
     credentials: 'include',
   });
 
@@ -255,6 +261,26 @@ export const api = {
       apiRequest(`/api/v1/debts/${id}`, {
         method: 'DELETE',
       }),
+    bulkUpload: (csvContent: string) =>
+      apiRequest<{
+        message: string;
+        results: {
+          total: number;
+          successful: number;
+          flagged: number;
+          failed: number;
+          errors: Array<{ row: number; message: string }>;
+        };
+      }>('/api/v1/debts/bulk-upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/csv',
+        },
+        body: csvContent,
+      }),
+    downloadTemplate: () => {
+      window.location.href = `${API_BASE_URL}/api/v1/debts/bulk-template`;
+    },
   },
 
   // Debtors
@@ -270,6 +296,52 @@ export const api = {
       phone: string | null;
       city: string | null;
     }>>('/api/v1/debtors'),
+    get: (id: string) => apiRequest<any>(`/api/v1/debtors/${id}`),
+    update: (id: string, data: {
+      first_name?: string;
+      last_name?: string;
+      company_name?: string;
+      registration_number?: string;
+      email?: string;
+      phone?: string;
+      address?: string;
+      city?: string;
+      postal_code?: string;
+      country?: string;
+    }) =>
+      apiRequest(`/api/v1/debtors/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    sendBulkNotification: (id: string) =>
+      apiRequest<{
+        message: string;
+        portal_link: string;
+        sent_to: string;
+        debt_count: number;
+        token_expires_at: number;
+      }>(`/api/v1/debtors/${id}/notify`, {
+        method: 'POST',
+      }),
+  },
+
+  // Notifications
+  notifications: {
+    sendDebtNotification: (debtId: string) =>
+      apiRequest<{
+        message: string;
+        portal_link: string;
+        sent_to: string;
+        token_expires_at: number;
+      }>(`/api/v1/notifications/debt/${debtId}`, {
+        method: 'POST',
+      }),
+    getNotificationStatus: (debtId: string) =>
+      apiRequest<{
+        notification_sent: boolean;
+        notification_sent_at: number | null;
+        portal_token: any | null;
+      }>(`/api/v1/notifications/debt/${debtId}/status`),
   },
 
   // Integrations

@@ -1,0 +1,11 @@
+debtor_type,debtor_ico,debtor_first_name,debtor_last_name,debtor_company_name,debtor_email,debtor_phone,debtor_address,debtor_city,debtor_postal_code,debtor_country,debt_type,reference_number,amount,invoice_date,due_date,description
+business,12345678,,,ACME s.r.o.,acme@example.com,+420123456789,Václavské náměstí 1,Praha,11000,CZ,invoice,INV-2025-001,50000,2025-01-15,2025-02-15,Invoice for construction materials
+individual,,Jan,Novák,,jan.novak@example.com,+420987654321,Hlavní 123,Brno,60200,CZ,rental,RENT-2025-001,15000,2025-01-01,2025-02-01,Monthly rent payment
+business,87654321,,,Tech Solutions s.r.o.,tech@example.com,+420555123456,Masarykova 45,Ostrava,70200,CZ,service,SRV-2025-005,35000,2025-01-10,2025-02-10,IT consulting services
+individual,,Marie,Svobodová,,marie@example.com,+420777888999,Krátká 8,Plzeň,30100,CZ,invoice,INV-2025-010,8500,2024-12-20,2025-01-20,Unpaid graphic design work
+business,11223344,,,Industrial Supplies a.s.,supplies@example.com,+420444555666,Průmyslová 200,Liberec,46001,CZ,invoice,INV-2025-015,125000,2025-01-05,2025-02-05,Wholesale equipment order
+individual,,Petr,Dvořák,,petr.dvorak@example.com,+420666777888,Nová 67,Olomouc,77900,CZ,damage,DMG-2025-002,22000,2024-12-15,2025-01-15,Property damage claim
+business,99887766,,,AutoParts s.r.o.,autoparts@example.com,+420333222111,Nádražní 33,České Budějovice,37001,CZ,lease,LEASE-2025-003,45000,2025-01-01,2025-02-01,Vehicle lease agreement
+individual,,Eva,Procházková,,eva.p@example.com,+420111222333,Dlouhá 15,Hradec Králové,50002,CZ,service,SRV-2025-008,12000,2024-12-25,2025-01-25,Legal consultation fees
+business,55443322,,,BuildCo s.r.o.,buildco@example.com,+420888999000,Stavební 88,Pardubice,53002,CZ,invoice,INV-2025-020,95000,2025-01-12,2025-02-12,Construction project materials
+individual,,Tomáš,Černý,,tomas.cerny@example.com,+420999888777,Zahradní 42,Karlovy Vary,36001,CZ,other,MISC-2025-001,18500,2024-12-28,2025-01-28,Miscellaneous unpaid services

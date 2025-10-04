@@ -86,8 +86,8 @@ debtRoutes.post('/', async (c) => {
           INSERT INTO debtors (
             id, tenant_id, type, first_name, last_name, company_name,
             registration_number, email, phone, address, city, postal_code,
-            country, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            country, created_by, source, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         .bind(
           debtorId,
@@ -103,6 +103,8 @@ debtRoutes.post('/', async (c) => {
           body.debtor.city || null,
           body.debtor.postal_code || null,
           body.debtor.country || 'CZ',
+          userId,
+          'manual',
           now
         )
         .run();
@@ -115,8 +117,8 @@ debtRoutes.post('/', async (c) => {
           id, tenant_id, client_id, debtor_id, reference_number, debt_type,
           original_amount, current_amount, currency, invoice_date, due_date,
           status, verification_status, has_contract, has_invoice,
-          has_delivery_proof, has_communication_log, notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          has_delivery_proof, has_communication_log, notes, created_by, source, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         debtId,
@@ -137,6 +139,8 @@ debtRoutes.post('/', async (c) => {
         body.has_delivery_proof || false,
         body.has_communication_log || false,
         body.notes || null,
+        userId,
+        'manual',
         now
       )
       .run();
@@ -355,10 +359,302 @@ debtRoutes.delete('/:id', async (c) => {
 
 // POST /api/v1/debts/bulk-upload
 debtRoutes.post('/bulk-upload', async (c) => {
-  return c.json({ message: 'Bulk upload debts - to be implemented' });
+  const tenantId = c.get('tenantId');
+  const userId = c.get('userId');
+  const userRole = c.get('userRole');
+  const db = c.env.DB as D1Database;
+
+  try {
+    const body = await c.req.text();
+    const lines = body.trim().split('\n');
+
+    if (lines.length < 2) {
+      return c.json(
+        { error: { code: 'INVALID_CSV', message: 'CSV file is empty or invalid' } },
+        400
+      );
+    }
+
+    // Validate headers
+    const headers = lines[0].split(',').map(h => h.trim());
+    const requiredHeaders = [
+      'debtor_type', 'debt_type', 'amount', 'invoice_date', 'due_date'
+    ];
+
+    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) {
+      return c.json(
+        { error: { code: 'INVALID_HEADERS', message: `Missing required headers: ${missingHeaders.join(', ')}` } },
+        400
+      );
+    }
+
+    // Limit to 500 rows
+    const dataRows = lines.slice(1);
+    if (dataRows.length > 500) {
+      return c.json(
+        { error: { code: 'TOO_MANY_ROWS', message: 'Maximum 500 rows allowed per upload' } },
+        400
+      );
+    }
+
+    // Get client_id - admin/attorney can upload for any client, client role uploads for themselves
+    let clientId: string | null = null;
+    if (userRole === 'client') {
+      const client = await db
+        .prepare(`SELECT id FROM clients WHERE user_id = ? AND tenant_id = ?`)
+        .bind(userId, tenantId)
+        .first();
+      if (!client) {
+        return c.json(
+          { error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found for user' } },
+          404
+        );
+      }
+      clientId = client.id as string;
+    } else if (userRole === 'admin' || userRole === 'attorney') {
+      // Admin/attorney must specify client_id in the CSV or we use the first client
+      const firstClient = await db
+        .prepare(`SELECT id FROM clients WHERE tenant_id = ? LIMIT 1`)
+        .bind(tenantId)
+        .first();
+      if (!firstClient) {
+        return c.json(
+          { error: { code: 'NO_CLIENTS', message: 'No clients found. Please create a client first.' } },
+          404
+        );
+      }
+      clientId = firstClient.id as string;
+    } else {
+      return c.json(
+        { error: { code: 'UNAUTHORIZED', message: 'Insufficient permissions to upload debts' } },
+        403
+      );
+    }
+
+    // Create bulk upload record
+    const bulkUploadId = `bulk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = Date.now();
+
+    await db
+      .prepare(`
+        INSERT INTO bulk_uploads (
+          id, tenant_id, uploaded_by, filename, total_rows, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `)
+      .bind(
+        bulkUploadId,
+        tenantId,
+        userId,
+        'upload.csv',
+        dataRows.length,
+        'processing',
+        now
+      )
+      .run();
+
+    const results = {
+      total: dataRows.length,
+      successful: 0,
+      flagged: 0,
+      failed: 0,
+      errors: [] as Array<{ row: number; message: string }>
+    };
+
+    // Process each row
+    for (let i = 0; i < dataRows.length; i++) {
+      const rowNum = i + 2; // +2 because of header and 0-index
+      const row = dataRows[i].split(',').map(v => v.trim());
+
+      try {
+        const rowData: any = {};
+        headers.forEach((header, idx) => {
+          rowData[header] = row[idx] || '';
+        });
+
+        // Validate required fields
+        if (!rowData.debtor_type || !rowData.debt_type || !rowData.amount) {
+          results.errors.push({ row: rowNum, message: 'Missing required fields' });
+          results.failed++;
+          continue;
+        }
+
+        // Validate debt type
+        const validDebtTypes = ['invoice', 'lease', 'rental', 'service', 'damage', 'other'];
+        if (!validDebtTypes.includes(rowData.debt_type)) {
+          results.errors.push({ row: rowNum, message: `Invalid debt_type: ${rowData.debt_type}` });
+          results.failed++;
+          continue;
+        }
+
+        // Validate debtor type
+        if (!['individual', 'business'].includes(rowData.debtor_type)) {
+          results.errors.push({ row: rowNum, message: `Invalid debtor_type: ${rowData.debtor_type}` });
+          results.failed++;
+          continue;
+        }
+
+        // Validate amount is numeric
+        const amount = parseFloat(rowData.amount);
+        if (isNaN(amount) || amount <= 0) {
+          results.errors.push({ row: rowNum, message: 'Amount must be a positive number' });
+          results.failed++;
+          continue;
+        }
+
+        // Check if debtor exists or create new one
+        let debtorId: string | null = null;
+
+        // For business, try to find by ICO
+        if (rowData.debtor_type === 'business' && rowData.debtor_ico) {
+          const existingDebtor = await db
+            .prepare(`SELECT id FROM debtors WHERE registration_number = ? AND tenant_id = ?`)
+            .bind(rowData.debtor_ico, tenantId)
+            .first();
+
+          if (existingDebtor) {
+            debtorId = existingDebtor.id as string;
+          }
+        }
+
+        // For individual, try to find by email
+        if (rowData.debtor_type === 'individual' && rowData.debtor_email) {
+          const existingDebtor = await db
+            .prepare(`SELECT id FROM debtors WHERE email = ? AND type = 'individual' AND tenant_id = ?`)
+            .bind(rowData.debtor_email, tenantId)
+            .first();
+
+          if (existingDebtor) {
+            debtorId = existingDebtor.id as string;
+          }
+        }
+
+        // Create debtor if not found
+        if (!debtorId) {
+          debtorId = `debtor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+          await db
+            .prepare(`
+              INSERT INTO debtors (
+                id, tenant_id, type, first_name, last_name, company_name,
+                registration_number, email, phone, address, city, postal_code,
+                country, created_by, source, bulk_upload_id, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+              debtorId,
+              tenantId,
+              rowData.debtor_type,
+              rowData.debtor_first_name || null,
+              rowData.debtor_last_name || null,
+              rowData.debtor_company_name || null,
+              rowData.debtor_ico || null,
+              rowData.debtor_email || null,
+              rowData.debtor_phone || null,
+              rowData.debtor_address || null,
+              rowData.debtor_city || null,
+              rowData.debtor_postal_code || null,
+              rowData.debtor_country || 'CZ',
+              userId,
+              'bulk_upload',
+              bulkUploadId,
+              Date.now()
+            )
+            .run();
+        }
+
+        // Create debt
+        const debtId = `debt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const now = Date.now();
+
+        // Parse dates
+        const invoiceDate = rowData.invoice_date ? new Date(rowData.invoice_date).getTime() : now;
+        const dueDate = rowData.due_date ? new Date(rowData.due_date).getTime() : now;
+
+        await db
+          .prepare(`
+            INSERT INTO debts (
+              id, tenant_id, client_id, debtor_id, reference_number, debt_type,
+              original_amount, current_amount, currency, invoice_date, due_date,
+              status, verification_status, notes, created_by, source, bulk_upload_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `)
+          .bind(
+            debtId,
+            tenantId,
+            clientId,
+            debtorId,
+            rowData.reference_number || null,
+            rowData.debt_type,
+            amount,
+            amount,
+            'CZK',
+            invoiceDate,
+            dueDate,
+            'draft',
+            'pending',
+            rowData.description || null,
+            userId,
+            'bulk_upload',
+            bulkUploadId,
+            now
+          )
+          .run();
+
+        results.successful++;
+
+      } catch (error) {
+        console.error(`Error processing row ${rowNum}:`, error);
+        results.errors.push({ row: rowNum, message: error instanceof Error ? error.message : 'Unknown error' });
+        results.failed++;
+      }
+    }
+
+    // Update bulk upload record with results
+    await db
+      .prepare(`
+        UPDATE bulk_uploads
+        SET successful_rows = ?, failed_rows = ?, status = ?, results = ?, completed_at = ?
+        WHERE id = ?
+      `)
+      .bind(
+        results.successful,
+        results.failed,
+        'completed',
+        JSON.stringify(results),
+        Date.now(),
+        bulkUploadId
+      )
+      .run();
+
+    return c.json({
+      data: {
+        message: 'Bulk upload completed',
+        bulk_upload_id: bulkUploadId,
+        results
+      }
+    }, 201);
+
+  } catch (error) {
+    console.error('Error in bulk upload:', error);
+    return c.json(
+      { error: { code: 'UPLOAD_ERROR', message: 'Failed to process bulk upload' } },
+      500
+    );
+  }
 });
 
 // GET /api/v1/debts/bulk-template
 debtRoutes.get('/bulk-template', async (c) => {
-  return c.json({ message: 'Download bulk template - to be implemented' });
+  // CSV template with headers and example row
+  const template = `debtor_type,debtor_ico,debtor_first_name,debtor_last_name,debtor_company_name,debtor_email,debtor_phone,debtor_address,debtor_city,debtor_postal_code,debtor_country,debt_type,reference_number,amount,invoice_date,due_date,description
+business,12345678,,,Example Company s.r.o.,debtor@example.com,+420123456789,Hlavní 123,Praha,11000,CZ,invoice,INV-2025-001,50000,2025-01-15,2025-02-15,Example invoice debt
+individual,,Jan,Novák,,jan@example.com,+420987654321,Vedlejší 45,Brno,60200,CZ,rental,RENT-001,15000,2025-01-01,2025-02-01,Monthly rent payment`;
+
+  return new Response(template, {
+    headers: {
+      'Content-Type': 'text/csv',
+      'Content-Disposition': 'attachment; filename="debt_upload_template.csv"',
+    },
+  });
 });

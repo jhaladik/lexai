@@ -18,7 +18,10 @@
       "Bash(curl:*)",
       "Bash(pnpm build:*)",
       "Bash(wrangler pages deploy:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(pnpm wrangler pages deploy:*)",
+      "Bash(pnpm wrangler deploy:*)",
+      "Bash(pnpm wrangler d1 migrations apply:*)"
     ],
     "deny": [],
     "ask": []

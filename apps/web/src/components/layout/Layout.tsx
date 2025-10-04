@@ -15,16 +15,16 @@ export function Layout() {
             </div>
             <nav className="hidden md:flex space-x-8">
               <a href="/" className="text-gray-700 hover:text-primary">
-                {t('nav.dashboard')}
-              </a>
-              <a href="/debts" className="text-gray-700 hover:text-primary">
-                {t('nav.debts')}
+                {t('nav.dashboard', 'Dashboard')}
               </a>
               <a href="/clients" className="text-gray-700 hover:text-primary">
-                {t('nav.clients')}
+                {t('nav.clients', 'Clients')}
               </a>
-              <a href="/reports" className="text-gray-700 hover:text-primary">
-                {t('nav.reports')}
+              <a href="/debts" className="text-gray-700 hover:text-primary">
+                {t('nav.debts', 'Debts')}
+              </a>
+              <a href="/debtors" className="text-gray-700 hover:text-primary">
+                {t('nav.debtors', 'Debtors')}
               </a>
             </nav>
             <div>
