@@ -12,8 +12,21 @@ portalRoutes.get('/:token', async (c) => {
     const portalToken = await db
       .prepare(`
         SELECT
-          pt.*,
-          d.*,
+          pt.id as pt_id,
+          pt.token,
+          pt.expires_at,
+          pt.access_count,
+          pt.revoked,
+          d.id as debt_id,
+          d.reference_number,
+          d.debt_type,
+          d.original_amount,
+          d.current_amount,
+          d.currency,
+          d.invoice_date,
+          d.due_date,
+          d.status as debt_status,
+          d.notes,
           c.company_name as client_company,
           c.address as client_address,
           c.city as client_city,
@@ -64,7 +77,7 @@ portalRoutes.get('/:token', async (c) => {
         SET last_accessed_at = ?, access_count = access_count + 1
         WHERE id = ?
       `)
-      .bind(now, portalToken.id)
+      .bind(now, portalToken.pt_id)
       .run();
 
     // Return debt details
@@ -83,7 +96,7 @@ portalRoutes.get('/:token', async (c) => {
           currency: portalToken.currency,
           invoice_date: portalToken.invoice_date,
           due_date: portalToken.due_date,
-          status: portalToken.status,
+          status: portalToken.debt_status,
           notes: portalToken.notes,
         },
         debtor: {
