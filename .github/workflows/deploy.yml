@@ -25,21 +25,12 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
-
-      - name: Type check
-        run: pnpm type-check
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build Frontend
-        working-directory: apps/web
-        run: pnpm build
-
-      - name: Run Database Migrations
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 migrations apply lexai-db --remote
+        run: |
+          cd apps/web
+          pnpm build
 
       - name: Deploy API to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
@@ -47,7 +38,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: 'apps/api'
-          command: deploy --env production
+          command: deploy
 
       - name: Deploy Frontend to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

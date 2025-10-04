@@ -10,7 +10,8 @@
       "Bash(wrangler kv namespace create:*)",
       "Bash(wrangler kv namespace:*)",
       "Bash(wrangler whoami:*)",
-      "Bash(wrangler d1 migrations apply:*)"
+      "Bash(wrangler d1 migrations apply:*)",
+      "Bash(pnpm install:*)"
     ],
     "deny": [],
     "ask": []
