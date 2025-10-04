@@ -17,6 +17,7 @@ type Bindings = {
 type Variables = {
   userId: string;
   tenantId: string;
+  userEmail: string;
   userRole: string;
 };
 
@@ -25,11 +26,13 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 // Middleware
 app.use('*', logger());
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'https://*.pages.dev', 'https://*.lexai.app'],
+  origin: ['http://localhost:5173', 'https://*.pages.dev', 'https://lexai.pages.dev'],
   credentials: true,
+  allowHeaders: ['Content-Type', 'CF-Access-JWT-Assertion'],
+  exposeHeaders: ['CF-Access-JWT-Assertion'],
 }));
 
-// Health check
+// Health check (no auth required)
 app.get('/health', (c) => {
   return c.json({
     status: 'healthy',
@@ -38,7 +41,7 @@ app.get('/health', (c) => {
   });
 });
 
-// API Routes (will be added incrementally)
+// API Routes
 app.get('/api/v1', (c) => {
   return c.json({ message: 'LexAI API v1' });
 });
@@ -47,11 +50,15 @@ app.get('/api/v1', (c) => {
 import { authRoutes } from './routes/auth';
 app.route('/api/v1/auth', authRoutes);
 
-// Client routes
+// Dashboard routes (protected)
+import { dashboardRoutes } from './routes/dashboard';
+app.route('/api/v1/dashboard', dashboardRoutes);
+
+// Client routes (protected)
 import { clientRoutes } from './routes/clients';
 app.route('/api/v1/clients', clientRoutes);
 
-// Debt routes
+// Debt routes (protected)
 import { debtRoutes } from './routes/debts';
 app.route('/api/v1/debts', debtRoutes);
 
