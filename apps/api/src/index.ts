@@ -62,6 +62,14 @@ app.route('/api/v1/clients', clientRoutes);
 import { debtRoutes } from './routes/debts';
 app.route('/api/v1/debts', debtRoutes);
 
+// Debtor routes (protected)
+import { debtorRoutes } from './routes/debtors';
+app.route('/api/v1/debtors', debtorRoutes);
+
+// Integration routes (protected)
+import { integrationRoutes } from './routes/integrations';
+app.route('/api/v1/integrations', integrationRoutes);
+
 // 404 handler
 app.notFound((c) => {
   return c.json({ error: 'Not Found' }, 404);
