@@ -110,6 +110,18 @@ debtRoutes.post('/', async (c) => {
         .run();
     }
 
+    // Check if relationship is already verified (auto-approve logic)
+    const relationship = await db
+      .prepare(`
+        SELECT verified, trust_level FROM debtor_client_relationships
+        WHERE tenant_id = ? AND debtor_id = ? AND client_id = ? AND verified = TRUE
+      `)
+      .bind(tenantId, debtorId, body.client_id)
+      .first();
+
+    // Auto-approve if relationship is verified, otherwise pending verification
+    const initialStatus = relationship ? 'verified' : 'pending_verification';
+
     // Create debt
     await db
       .prepare(`
@@ -117,8 +129,9 @@ debtRoutes.post('/', async (c) => {
           id, tenant_id, client_id, debtor_id, reference_number, debt_type,
           original_amount, current_amount, currency, invoice_date, due_date,
           status, verification_status, has_contract, has_invoice,
-          has_delivery_proof, has_communication_log, notes, created_by, source, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          has_delivery_proof, has_communication_log, notes, created_by, source, created_at,
+          verified_at, verified_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         debtId,
@@ -132,7 +145,7 @@ debtRoutes.post('/', async (c) => {
         body.currency || 'CZK',
         body.invoice_date ? new Date(body.invoice_date).getTime() : now,
         body.due_date ? new Date(body.due_date).getTime() : now,
-        'draft',
+        initialStatus,
         'pending',
         body.has_contract || false,
         body.has_invoice || false,
@@ -141,9 +154,25 @@ debtRoutes.post('/', async (c) => {
         body.notes || null,
         userId,
         'manual',
-        now
+        now,
+        relationship ? now : null,
+        relationship ? 'system_auto_approved' : null
       )
       .run();
+
+    // Update relationship debt counts if exists
+    if (relationship) {
+      await db
+        .prepare(`
+          UPDATE debtor_client_relationships
+          SET total_debts_count = total_debts_count + 1,
+              last_debt_date = ?,
+              updated_at = ?
+          WHERE tenant_id = ? AND debtor_id = ? AND client_id = ?
+        `)
+        .bind(now, now, tenantId, debtorId, body.client_id)
+        .run();
+    }
 
     // Fetch the created debt with joined data
     const debt = await db
@@ -611,13 +640,25 @@ debtRoutes.post('/bulk-upload', async (c) => {
         const invoiceDate = rowData.invoice_date ? new Date(rowData.invoice_date).getTime() : now;
         const dueDate = rowData.due_date ? new Date(rowData.due_date).getTime() : now;
 
+        // Check if relationship is already verified (auto-approve logic)
+        const relationship = await db
+          .prepare(`
+            SELECT verified FROM debtor_client_relationships
+            WHERE tenant_id = ? AND debtor_id = ? AND client_id = ? AND verified = TRUE
+          `)
+          .bind(tenantId, debtorId, clientId)
+          .first();
+
+        const initialStatus = relationship ? 'verified' : 'pending_verification';
+
         await db
           .prepare(`
             INSERT INTO debts (
               id, tenant_id, client_id, debtor_id, reference_number, debt_type,
               original_amount, current_amount, currency, invoice_date, due_date,
-              status, verification_status, notes, created_by, source, bulk_upload_id, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              status, verification_status, notes, created_by, source, bulk_upload_id, created_at,
+              verified_at, verified_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `)
           .bind(
             debtId,
@@ -631,15 +672,31 @@ debtRoutes.post('/bulk-upload', async (c) => {
             'CZK',
             invoiceDate,
             dueDate,
-            'draft',
+            initialStatus,
             'pending',
             rowData.description || null,
             userId,
             'bulk_upload',
             bulkUploadId,
-            now
+            now,
+            relationship ? now : null,
+            relationship ? 'system_auto_approved' : null
           )
           .run();
+
+        // Update relationship debt counts if exists
+        if (relationship) {
+          await db
+            .prepare(`
+              UPDATE debtor_client_relationships
+              SET total_debts_count = total_debts_count + 1,
+                  last_debt_date = ?,
+                  updated_at = ?
+              WHERE tenant_id = ? AND debtor_id = ? AND client_id = ?
+            `)
+            .bind(now, now, tenantId, debtorId, clientId)
+            .run();
+        }
 
         results.successful++;
 

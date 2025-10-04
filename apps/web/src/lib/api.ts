@@ -354,6 +354,8 @@ export const api = {
       const query = new URLSearchParams(params as Record<string, string>).toString();
       return apiRequest<any>(`/api/v1/attorney/review-queue?${query}`);
     },
+    getDebtorGroup: (debtorId: string, clientId: string) =>
+      apiRequest<any>(`/api/v1/attorney/debtor-group/${debtorId}/${clientId}`),
     verifyRelationship: (data: {
       debtor_id: string;
       client_id: string;

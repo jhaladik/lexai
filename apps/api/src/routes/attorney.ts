@@ -171,39 +171,58 @@ attorneyRoutes.post('/verify-relationship', async (c) => {
   try {
     const now = Date.now();
 
-    // Create or update relationship
-    const relationshipId = `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    await db
+    // Check if relationship exists
+    const existing = await db
       .prepare(`
-        INSERT INTO debtor_client_relationships (
-          id, tenant_id, debtor_id, client_id,
-          verified, verified_at, verified_by,
-          relationship_type, contract_reference,
-          trust_level, verification_notes,
-          first_debt_date, last_debt_date,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(tenant_id, debtor_id, client_id) DO UPDATE SET
-          verified = TRUE,
-          verified_at = ?,
-          verified_by = ?,
-          relationship_type = ?,
-          contract_reference = ?,
-          trust_level = 'verified',
-          verification_notes = ?,
-          updated_at = ?
+        SELECT id FROM debtor_client_relationships
+        WHERE tenant_id = ? AND debtor_id = ? AND client_id = ?
       `)
-      .bind(
-        relationshipId, tenantId, debtor_id, client_id,
-        true, now, userId,
-        relationship_type, contract_reference,
-        'verified', notes,
-        now, now, now, now,
-        // ON CONFLICT updates
-        now, userId, relationship_type, contract_reference, notes, now
-      )
-      .run();
+      .bind(tenantId, debtor_id, client_id)
+      .first();
+
+    let relationshipId;
+
+    if (existing) {
+      // Update existing relationship
+      relationshipId = existing.id as string;
+      await db
+        .prepare(`
+          UPDATE debtor_client_relationships
+          SET verified = ?,
+              verified_at = ?,
+              verified_by = ?,
+              relationship_type = ?,
+              contract_reference = ?,
+              trust_level = ?,
+              verification_notes = ?,
+              updated_at = ?
+          WHERE id = ?
+        `)
+        .bind(true, now, userId, relationship_type, contract_reference, 'verified', notes, now, relationshipId)
+        .run();
+    } else {
+      // Create new relationship
+      relationshipId = `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await db
+        .prepare(`
+          INSERT INTO debtor_client_relationships (
+            id, tenant_id, debtor_id, client_id,
+            verified, verified_at, verified_by,
+            relationship_type, contract_reference,
+            trust_level, verification_notes,
+            first_debt_date, last_debt_date,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .bind(
+          relationshipId, tenantId, debtor_id, client_id,
+          true, now, userId,
+          relationship_type, contract_reference,
+          'verified', notes,
+          now, now, now, now
+        )
+        .run();
+    }
 
     // Approve all specified debts
     for (const debtId of debt_ids) {

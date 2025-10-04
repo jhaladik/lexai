@@ -37,8 +37,9 @@ export function AttorneyReview() {
         group: viewMode === 'grouped' ? 'debtor' : 'individual',
         sort: sortBy
       });
-      if (response.data.view === 'grouped') {
-        setGroups(response.data.groups);
+      console.log('API Response:', response);
+      if (response.view === 'grouped') {
+        setGroups(response.groups);
       }
     } catch (error) {
       console.error('Error loading review queue:', error);
