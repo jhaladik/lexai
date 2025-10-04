@@ -7,7 +7,8 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "lexai-db"
-database_id = "YOUR_DATABASE_ID" # Replace after creating D1 database
+database_id = "7200c202-7c2d-4d3c-a5c6-69eda9366dc5"
+migrations_dir = "../../packages/database/migrations"
 
 # R2 Storage (Documents)
 [[r2_buckets]]
@@ -17,7 +18,7 @@ bucket_name = "lexai-documents"
 # KV Cache
 [[kv_namespaces]]
 binding = "CACHE"
-id = "YOUR_KV_ID" # Replace after creating KV namespace
+id = "c25b28c0a82547edb80b56169aba04b6"
 
 # Environment Variables
 [vars]
