@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(git commit:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(wrangler d1 create:*)",
+      "Bash(wrangler r2 bucket create:*)",
+      "Bash(wrangler kv namespace create:*)",
+      "Bash(wrangler kv namespace:*)",
+      "Bash(wrangler whoami:*)",
+      "Bash(wrangler d1 migrations apply:*)"
     ],
     "deny": [],
     "ask": []
