@@ -1,0 +1,17 @@
+{
+  "name": "@lexai/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./types": "./src/types/index.ts",
+    "./utils": "./src/utils/index.ts",
+    "./constants": "./src/constants/index.ts"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

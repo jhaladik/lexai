@@ -1,0 +1,17 @@
+{
+  "name": "@lexai/database",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "migrate": "wrangler d1 migrations apply lexai-db",
+    "migrate:local": "wrangler d1 migrations apply lexai-db --local",
+    "migrate:create": "wrangler d1 migrations create lexai-db"
+  },
+  "devDependencies": {
+    "wrangler": "^3.57.0"
+  }
+}

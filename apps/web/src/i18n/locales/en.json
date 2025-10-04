@@ -1,0 +1,48 @@
+{
+  "common": {
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "debts": "Debts",
+    "clients": "Clients",
+    "reports": "Reports",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalDebts": "Total Debts",
+    "activeDebts": "Active Debts",
+    "totalValue": "Total Value",
+    "collected": "Collected"
+  },
+  "debts": {
+    "title": "Debts",
+    "newDebt": "New Debt",
+    "bulkUpload": "Bulk Upload",
+    "reference": "Invoice #",
+    "debtor": "Debtor",
+    "amount": "Amount",
+    "dueDate": "Due Date",
+    "status": "Status",
+    "actions": "Actions"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "common": {
+    "submit": "Odoslať",
+    "cancel": "Zrušiť",
+    "save": "Uložiť",
+    "delete": "Vymazať",
+    "edit": "Upraviť",
+    "close": "Zavrieť",
+    "loading": "Načítavam...",
+    "error": "Chyba",
+    "success": "Úspech",
+    "search": "Hľadať",
+    "filter": "Filtrovať",
+    "export": "Exportovať"
+  },
+  "nav": {
+    "dashboard": "Prehľad",
+    "debts": "Pohľadávky",
+    "clients": "Klienti",
+    "reports": "Reporty",
+    "settings": "Nastavenia",
+    "logout": "Odhlásiť sa"
+  },
+  "auth": {
+    "login": "Prihlásiť sa",
+    "email": "E-mail",
+    "password": "Heslo",
+    "forgotPassword": "Zabudnuté heslo?"
+  },
+  "dashboard": {
+    "title": "Prehľad",
+    "totalDebts": "Celkom pohľadávok",
+    "activeDebts": "Aktívne pohľadávky",
+    "totalValue": "Celková hodnota",
+    "collected": "Vybraté"
+  },
+  "debts": {
+    "title": "Pohľadávky",
+    "newDebt": "Nová pohľadávka",
+    "bulkUpload": "Hromadné nahranie",
+    "reference": "Č. faktúry",
+    "debtor": "Dlžník",
+    "amount": "Suma",
+    "dueDate": "Splatnosť",
+    "status": "Stav",
+    "actions": "Akcie"
+  }
+}

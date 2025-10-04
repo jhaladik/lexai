@@ -1,0 +1,43 @@
+name = "lexai-api"
+main = "src/index.ts"
+compatibility_date = "2024-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "lexai-db"
+database_id = "YOUR_DATABASE_ID" # Replace after creating D1 database
+
+# R2 Storage (Documents)
+[[r2_buckets]]
+binding = "DOCUMENTS"
+bucket_name = "lexai-documents"
+
+# KV Cache
+[[kv_namespaces]]
+binding = "CACHE"
+id = "YOUR_KV_ID" # Replace after creating KV namespace
+
+# Environment Variables
+[vars]
+ENVIRONMENT = "development"
+
+# Secrets (set via: wrangler secret put <KEY>)
+# - SMTP2GO_API_KEY
+# - OPENAI_API_KEY
+# - STRIPE_SECRET_KEY
+# - GOPAY_CLIENT_SECRET
+# - JWT_SECRET
+# - SIGNING_CERTIFICATE (base64 encoded PKCS#12)
+# - SIGNING_CERTIFICATE_PASSWORD
+
+# Cron Triggers
+[triggers]
+crons = [
+  "0 6 * * *",  # Send payment reminders
+  "0 7 * * *",  # Process auto charges
+  "0 8 * * *",  # Check overdue installments
+  "0 9 * * *",  # Trigger accelerations
+  "0 10 * * *"  # Check deadlines
+]
