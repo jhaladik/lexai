@@ -4,6 +4,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Clients } from '@/pages/Clients';
 import { Debts } from '@/pages/Debts';
 import { Debtors } from '@/pages/Debtors';
+import { AttorneyReview } from '@/pages/AttorneyReview';
 import { DebtorPortal } from '@/pages/DebtorPortal';
 import { Login } from '@/pages/Login';
 
@@ -17,6 +18,7 @@ function App() {
         <Route path="clients" element={<Clients />} />
         <Route path="debts" element={<Debts />} />
         <Route path="debtors" element={<Debtors />} />
+        <Route path="attorney/review" element={<AttorneyReview />} />
         {/* More routes will be added here */}
       </Route>
     </Routes>

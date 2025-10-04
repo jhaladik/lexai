@@ -348,6 +348,30 @@ export const api = {
       }>(`/api/v1/notifications/debt/${debtId}/status`),
   },
 
+  // Attorney
+  attorney: {
+    getReviewQueue: (params?: { group?: string; sort?: string }) => {
+      const query = new URLSearchParams(params as Record<string, string>).toString();
+      return apiRequest<any>(`/api/v1/attorney/review-queue?${query}`);
+    },
+    verifyRelationship: (data: {
+      debtor_id: string;
+      client_id: string;
+      relationship_type: string;
+      contract_reference?: string;
+      debt_ids: string[];
+      notes?: string;
+    }) => apiRequest<any>('/api/v1/attorney/verify-relationship', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    rejectDebt: (debtId: string, reason: string) =>
+      apiRequest<any>('/api/v1/attorney/reject-debt', {
+        method: 'POST',
+        body: JSON.stringify({ debt_id: debtId, reason }),
+      }),
+  },
+
   // Integrations
   integrations: {
     ares: (ico: string) => apiRequest<{
