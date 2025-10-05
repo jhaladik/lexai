@@ -23,7 +23,9 @@
       "Bash(pnpm wrangler deploy:*)",
       "Bash(pnpm wrangler d1 migrations apply:*)",
       "Bash(pnpm run:*)",
-      "Bash(wrangler tail:*)"
+      "Bash(wrangler tail:*)",
+      "Bash(wrangler d1 execute:*)",
+      "Bash(wrangler d1 migrations list:*)"
     ],
     "deny": [],
     "ask": []

@@ -374,6 +374,30 @@ export const api = {
       }),
   },
 
+  // Payment Plans
+  paymentPlans: {
+    list: () => apiRequest<any[]>('/api/v1/payment-plans'),
+    get: (id: string) => apiRequest<any>(`/api/v1/payment-plans/${id}`),
+    approve: (id: string) =>
+      apiRequest<any>(`/api/v1/payment-plans/${id}/approve`, {
+        method: 'PUT',
+      }),
+    reject: (id: string, reason: string) =>
+      apiRequest<any>(`/api/v1/payment-plans/${id}/reject`, {
+        method: 'PUT',
+        body: JSON.stringify({ reason }),
+      }),
+    recordPayment: (installmentId: string, amount: number, method: string) =>
+      apiRequest<any>(`/api/v1/payment-plans/installments/${installmentId}/record-payment`, {
+        method: 'POST',
+        body: JSON.stringify({ amount, payment_method: method }),
+      }),
+    accelerate: (id: string) =>
+      apiRequest<any>(`/api/v1/payment-plans/${id}/accelerate`, {
+        method: 'PUT',
+      }),
+  },
+
   // Integrations
   integrations: {
     ares: (ico: string) => apiRequest<{

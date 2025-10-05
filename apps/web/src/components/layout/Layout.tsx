@@ -26,6 +26,9 @@ export function Layout() {
               <a href="/debtors" className="text-gray-700 hover:text-primary">
                 {t('nav.debtors', 'Debtors')}
               </a>
+              <a href="/payment-plans" className="text-gray-700 hover:text-primary">
+                Payment Plans
+              </a>
             </nav>
             <div>
               <button className="text-gray-700 hover:text-primary">

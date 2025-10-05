@@ -111,31 +111,41 @@ app.onError((err, c) => {
   }, 500);
 });
 
+// Cron jobs
+import {
+  sendPaymentReminders,
+  processAutoCharges,
+  checkOverdueInstallments,
+  triggerAccelerations
+} from './cron/payment-plans';
+
 // Cron handler
 export default {
   fetch: app.fetch,
 
   async scheduled(event: ScheduledEvent, env: Bindings, ctx: ExecutionContext) {
+    console.log(`Cron job triggered: ${event.cron}`);
+
     switch (event.cron) {
       case '0 6 * * *':
         console.log('Running: Send payment reminders');
-        // TODO: Implement
+        ctx.waitUntil(sendPaymentReminders(env));
         break;
       case '0 7 * * *':
         console.log('Running: Process auto charges');
-        // TODO: Implement
+        ctx.waitUntil(processAutoCharges(env));
         break;
       case '0 8 * * *':
         console.log('Running: Check overdue installments');
-        // TODO: Implement
+        ctx.waitUntil(checkOverdueInstallments(env));
         break;
       case '0 9 * * *':
         console.log('Running: Trigger accelerations');
-        // TODO: Implement
+        ctx.waitUntil(triggerAccelerations(env));
         break;
       case '0 10 * * *':
         console.log('Running: Check deadlines');
-        // TODO: Implement
+        // TODO: Implement deadline checking for attorney letters
         break;
     }
   },
