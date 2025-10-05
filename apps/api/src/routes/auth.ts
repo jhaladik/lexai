@@ -1,24 +1,52 @@
 import { Hono } from 'hono';
+import { requireAuth } from '../middleware/auth';
 
 export const authRoutes = new Hono();
 
-// POST /api/v1/auth/login
-authRoutes.post('/login', async (c) => {
-  // TODO: Implement Cloudflare Access JWT validation
-  return c.json({ message: 'Login endpoint - to be implemented' });
-});
+// GET /api/v1/auth/me - Get current user info
+authRoutes.get('/me', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const tenantId = c.get('tenantId');
+  const userEmail = c.get('userEmail');
+  const userRole = c.get('userRole');
 
-// POST /api/v1/auth/logout
-authRoutes.post('/logout', async (c) => {
-  return c.json({ message: 'Logout endpoint - to be implemented' });
-});
+  // Get full user details from database
+  const db = c.env.DB as D1Database;
+  const user = await db
+    .prepare(`
+      SELECT
+        u.id,
+        u.email,
+        u.first_name,
+        u.last_name,
+        u.role,
+        u.tenant_id
+      FROM users u
+      WHERE u.id = ?
+    `)
+    .bind(userId)
+    .first();
 
-// POST /api/v1/auth/refresh
-authRoutes.post('/refresh', async (c) => {
-  return c.json({ message: 'Refresh endpoint - to be implemented' });
-});
+  if (!user) {
+    return c.json(
+      {
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found',
+        },
+      },
+      404
+    );
+  }
 
-// GET /api/v1/auth/me
-authRoutes.get('/me', async (c) => {
-  return c.json({ message: 'Current user endpoint - to be implemented' });
+  return c.json({
+    data: {
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      role: user.role,
+      tenant_id: user.tenant_id,
+    },
+  });
 });
