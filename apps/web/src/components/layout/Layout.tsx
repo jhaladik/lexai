@@ -15,25 +15,13 @@ export function Layout() {
     // Clear any local auth state
     localStorage.removeItem('auth_token');
 
-    // Clear all possible Cloudflare Access cookies
-    // CF_Authorization is the JWT token cookie
-    const cookiesToClear = ['CF_Authorization', 'CF_AppSession'];
-    const domain = window.location.hostname;
+    // Redirect to Cloudflare Access logout endpoint
+    // This properly terminates the Cloudflare Access session
+    // The endpoint will clear all cookies and invalidate the session
+    const teamName = 'jhaladik'; // Your Cloudflare Access team name
+    const logoutUrl = `https://${teamName}.cloudflareaccess.com/cdn-cgi/access/logout`;
 
-    cookiesToClear.forEach(cookieName => {
-      // Clear for current path
-      document.cookie = `${cookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
-      // Clear for domain
-      document.cookie = `${cookieName}=; Path=/; Domain=${domain}; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
-      // Clear for parent domain (if subdomain)
-      if (domain.includes('.')) {
-        const parentDomain = domain.substring(domain.indexOf('.'));
-        document.cookie = `${cookieName}=; Path=/; Domain=${parentDomain}; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
-      }
-    });
-
-    // Redirect to login page
-    window.location.href = '/login';
+    window.location.href = logoutUrl;
   };
 
   // Role-based navigation items
