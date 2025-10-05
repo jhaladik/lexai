@@ -95,6 +95,10 @@ app.route('/api/v1/disputes', disputeRoutes);
 import { attorneyRoutes } from './routes/attorney';
 app.route('/api/v1/attorney', attorneyRoutes);
 
+// Attorney Letter routes (protected - attorney only)
+import { attorneyLetterRoutes } from './routes/attorney-letters';
+app.route('/api/v1/attorney-letters', attorneyLetterRoutes);
+
 // Communication routes (protected)
 import { communicationRoutes } from './routes/communications';
 app.route('/api/v1/communications', communicationRoutes);

@@ -450,6 +450,29 @@ export const api = {
         body: JSON.stringify({ status }),
       }),
   },
+
+  // Attorney Letters
+  attorneyLetters: {
+    generate: (data: { debt_id: string; letter_type?: string; custom_message?: string }) =>
+      apiRequest<{
+        document_id: string;
+        letter_html: string;
+        debt_id: string;
+        message: string;
+      }>('/api/v1/attorney-letters/generate', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    send: (documentId: string) =>
+      apiRequest<{
+        message: string;
+        communication_id: string;
+        sent_to: string;
+        sent_at: number;
+      }>(`/api/v1/attorney-letters/${documentId}/send`, {
+        method: 'POST',
+      }),
+  },
 };
 
 export default api;

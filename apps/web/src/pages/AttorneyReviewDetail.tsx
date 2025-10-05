@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { AttorneyLetterModal } from '@/components/AttorneyLetterModal';
 
 interface Debt {
   id: string;
@@ -39,6 +40,7 @@ export function AttorneyReviewDetail() {
   const [contractReference, setContractReference] = useState('');
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [selectedLetterDebt, setSelectedLetterDebt] = useState<{ id: string; reference: string } | null>(null);
 
   useEffect(() => {
     loadDebtorGroup();
@@ -209,6 +211,14 @@ export function AttorneyReviewDetail() {
                         Reject
                       </button>
                     )}
+                    {debt.status === 'verified' && (
+                      <button
+                        onClick={() => setSelectedLetterDebt({ id: debt.id, reference: debt.reference_number || debt.id.slice(-8) })}
+                        className="px-3 py-1 text-xs bg-blue-600 text-white hover:bg-blue-700 rounded font-medium"
+                      >
+                        📧 Generate Attorney Letter
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -289,6 +299,15 @@ export function AttorneyReviewDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Attorney Letter Modal */}
+      {selectedLetterDebt && (
+        <AttorneyLetterModal
+          debtId={selectedLetterDebt.id}
+          debtReference={selectedLetterDebt.reference}
+          onClose={() => setSelectedLetterDebt(null)}
+        />
       )}
     </div>
   );

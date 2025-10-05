@@ -1,12 +1,18 @@
 import { Hono } from 'hono';
+import { requireAuth } from '../middleware/auth';
 import { sendDisputeNotificationEmail, sendDisputeResolutionEmail } from '../services/email';
 
 export const disputeRoutes = new Hono();
 
+// Protected routes (require authentication)
+disputeRoutes.use('/', requireAuth);
+disputeRoutes.use('/:id', requireAuth);
+disputeRoutes.use('/:id/*', requireAuth);
+
 // GET /api/v1/disputes - List all disputes (attorney view)
 disputeRoutes.get('/', async (c) => {
   const db = c.env.DB as D1Database;
-  const user = c.get('user');
+  const tenantId = c.get('tenantId');
 
   const status = c.req.query('status'); // open, under_review, resolved, rejected
   const disputeType = c.req.query('type');
@@ -24,25 +30,26 @@ disputeRoutes.get('/', async (c) => {
         debtor.company_name as debtor_company,
         debtor.email as debtor_email,
         client.company_name as client_company,
-        client.email as client_email,
+        client_user.email as client_email,
         resolver.first_name as resolved_by_first_name,
         resolver.last_name as resolved_by_last_name
       FROM disputes d
       LEFT JOIN debts debt ON d.debt_id = debt.id
       LEFT JOIN debtors debtor ON debt.debtor_id = debtor.id
       LEFT JOIN clients client ON debt.client_id = client.id
+      LEFT JOIN users client_user ON client.user_id = client_user.id
       LEFT JOIN users resolver ON d.resolved_by = resolver.id
       WHERE d.tenant_id = ?
     `;
 
-    const bindings = [user.tenant_id];
+    const bindings = [tenantId];
 
-    if (status) {
+    if (status && status.trim()) {
       query += ` AND d.status = ?`;
       bindings.push(status);
     }
 
-    if (disputeType) {
+    if (disputeType && disputeType.trim()) {
       query += ` AND d.dispute_type = ?`;
       bindings.push(disputeType);
     }
@@ -64,7 +71,7 @@ disputeRoutes.get('/', async (c) => {
 // GET /api/v1/disputes/:id - Get single dispute with full details
 disputeRoutes.get('/:id', async (c) => {
   const db = c.env.DB as D1Database;
-  const user = c.get('user');
+  const tenantId = c.get('tenantId');
   const disputeId = c.req.param('id');
 
   try {
@@ -88,17 +95,18 @@ disputeRoutes.get('/:id', async (c) => {
         debtor.address as debtor_address,
         debtor.city as debtor_city,
         client.company_name as client_company,
-        client.email as client_email,
-        client.phone as client_phone,
+        client_user.email as client_email,
+        client_user.phone as client_phone,
         resolver.first_name as resolved_by_first_name,
         resolver.last_name as resolved_by_last_name
       FROM disputes d
       LEFT JOIN debts debt ON d.debt_id = debt.id
       LEFT JOIN debtors debtor ON debt.debtor_id = debtor.id
       LEFT JOIN clients client ON debt.client_id = client.id
+      LEFT JOIN users client_user ON client.user_id = client_user.id
       LEFT JOIN users resolver ON d.resolved_by = resolver.id
       WHERE d.id = ? AND d.tenant_id = ?
-    `).bind(disputeId, user.tenant_id).first();
+    `).bind(disputeId, tenantId).first();
 
     if (!dispute) {
       return c.json(
@@ -143,7 +151,8 @@ disputeRoutes.get('/:id', async (c) => {
 disputeRoutes.put('/:id/resolve', async (c) => {
   const db = c.env.DB as D1Database;
   const smtp2goApiKey = c.env.SMTP2GO_API_KEY;
-  const user = c.get('user');
+  const tenantId = c.get('tenantId');
+  const userId = c.get('userId');
   const disputeId = c.req.param('id');
 
   const { outcome, resolution, new_amount, debt_status } = await c.req.json();
@@ -166,13 +175,14 @@ disputeRoutes.put('/:id/resolve', async (c) => {
         debtor.company_name as debtor_company,
         debtor.type as debtor_type,
         client.company_name as client_company,
-        client.email as client_email
+        client_user.email as client_email
       FROM disputes d
       LEFT JOIN debts debt ON d.debt_id = debt.id
       LEFT JOIN debtors debtor ON debt.debtor_id = debtor.id
       LEFT JOIN clients client ON debt.client_id = client.id
+      LEFT JOIN users client_user ON client.user_id = client_user.id
       WHERE d.id = ? AND d.tenant_id = ?
-    `).bind(disputeId, user.tenant_id).first();
+    `).bind(disputeId, tenantId).first();
 
     if (!dispute) {
       return c.json(
@@ -196,7 +206,7 @@ disputeRoutes.put('/:id/resolve', async (c) => {
       UPDATE disputes
       SET status = ?, resolution = ?, resolved_by = ?, resolved_at = ?
       WHERE id = ?
-    `).bind(newStatus, resolution, user.id, now, disputeId).run();
+    `).bind(newStatus, resolution, userId, now, disputeId).run();
 
     // Update debt based on outcome
     if (outcome === 'upheld') {
@@ -231,7 +241,7 @@ disputeRoutes.put('/:id/resolve', async (c) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       commId,
-      user.tenant_id,
+      tenantId,
       dispute.debt_id,
       'email',
       'outbound',
@@ -289,14 +299,14 @@ disputeRoutes.put('/:id/resolve', async (c) => {
 // PUT /api/v1/disputes/:id/status - Update dispute status (for workflow)
 disputeRoutes.put('/:id/status', async (c) => {
   const db = c.env.DB as D1Database;
-  const user = c.get('user');
+  const tenantId = c.get('tenantId');
   const disputeId = c.req.param('id');
   const { status } = await c.req.json();
 
   try {
     await db.prepare(`
       UPDATE disputes SET status = ? WHERE id = ? AND tenant_id = ?
-    `).bind(status, disputeId, user.tenant_id).run();
+    `).bind(status, disputeId, tenantId).run();
 
     return c.json({ data: { message: 'Status updated', status } });
   } catch (error) {
