@@ -5,6 +5,7 @@ import { Clients } from '@/pages/Clients';
 import { Debts } from '@/pages/Debts';
 import { Debtors } from '@/pages/Debtors';
 import { Communications } from '@/pages/Communications';
+import { Disputes } from '@/pages/Disputes';
 import { AttorneyReview } from '@/pages/AttorneyReview';
 import { AttorneyReviewDetail } from '@/pages/AttorneyReviewDetail';
 import { PaymentPlans } from '@/pages/PaymentPlans';
@@ -22,6 +23,7 @@ function App() {
         <Route path="debts" element={<Debts />} />
         <Route path="debtors" element={<Debtors />} />
         <Route path="communications" element={<Communications />} />
+        <Route path="disputes" element={<Disputes />} />
         <Route path="payment-plans" element={<PaymentPlans />} />
         <Route path="attorney/review" element={<AttorneyReview />} />
         <Route path="attorney/review/:debtorId/:clientId" element={<AttorneyReviewDetail />} />

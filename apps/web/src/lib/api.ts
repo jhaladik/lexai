@@ -426,6 +426,30 @@ export const api = {
       established_date?: string;
     }>(`/api/v1/integrations/ares/${ico}`),
   },
+
+  // Disputes
+  disputes: {
+    list: (params?: { status?: string; type?: string }) => {
+      const query = new URLSearchParams(params as Record<string, string>).toString();
+      return apiRequest<any[]>(`/api/v1/disputes?${query}`);
+    },
+    get: (id: string) => apiRequest<any>(`/api/v1/disputes/${id}`),
+    resolve: (id: string, data: {
+      outcome: 'upheld' | 'rejected' | 'partial';
+      resolution: string;
+      new_amount?: number;
+      debt_status?: string;
+    }) =>
+      apiRequest<any>(`/api/v1/disputes/${id}/resolve`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    updateStatus: (id: string, status: string) =>
+      apiRequest<any>(`/api/v1/disputes/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      }),
+  },
 };
 
 export default api;

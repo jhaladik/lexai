@@ -29,6 +29,9 @@ export function Layout() {
               <a href="/communications" className="text-gray-700 hover:text-primary">
                 Communications
               </a>
+              <a href="/disputes" className="text-gray-700 hover:text-primary">
+                Disputes
+              </a>
               <a href="/payment-plans" className="text-gray-700 hover:text-primary">
                 Payment Plans
               </a>

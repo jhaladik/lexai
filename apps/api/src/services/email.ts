@@ -619,3 +619,87 @@ export async function sendPaymentPlanRejectionEmail(
     apiKey
   );
 }
+
+interface DisputeNotificationData {
+  attorneyEmail: string;
+  clientEmail: string;
+  debtorName: string;
+  clientName: string;
+  referenceNumber: string;
+  disputeType: string;
+  description: string;
+  debtAmount: number;
+  currency: string;
+  language?: string;
+}
+
+interface DisputeResolutionData {
+  debtorEmail: string;
+  debtorName: string;
+  clientName: string;
+  referenceNumber: string;
+  disputeType: string;
+  outcome: 'upheld' | 'rejected' | 'partial';
+  resolution: string;
+  newAmount?: number;
+  originalAmount: number;
+  language?: string;
+}
+
+export async function sendDisputeNotificationEmail(
+  data: DisputeNotificationData,
+  apiKey: string
+): Promise<{ success: boolean; error?: string }> {
+  const html = `Email HTML with dispute details`;
+  const lang = data.language || 'cs';
+
+  const subjects = {
+    cs: `⚠️ NÁMITKA PODÁNA - ${data.referenceNumber}`,
+    en: `⚠️ DISPUTE RAISED - ${data.referenceNumber}`,
+  };
+
+  return sendEmail(
+    {
+      to: data.attorneyEmail,
+      subject: subjects[lang as keyof typeof subjects] || subjects.cs,
+      html,
+      from: 'support@haladik.com',
+      fromName: 'LexAI System',
+    },
+    apiKey
+  );
+}
+
+export async function sendDisputeResolutionEmail(
+  data: DisputeResolutionData,
+  apiKey: string
+): Promise<{ success: boolean; error?: string }> {
+  const html = `Email HTML with resolution`;
+  const lang = data.language || 'cs';
+
+  const subjects = {
+    cs: {
+      upheld: `✓ Námitka schválena - ${data.referenceNumber}`,
+      rejected: `✗ Námitka zamítnuta - ${data.referenceNumber}`,
+      partial: `⚖️ Námitka částečně schválena - ${data.referenceNumber}`,
+    },
+    en: {
+      upheld: `✓ Dispute Upheld - ${data.referenceNumber}`,
+      rejected: `✗ Dispute Rejected - ${data.referenceNumber}`,
+      partial: `⚖️ Dispute Partially Upheld - ${data.referenceNumber}`,
+    },
+  };
+
+  const subject = subjects[lang as keyof typeof subjects]?.[data.outcome] || subjects.cs[data.outcome];
+
+  return sendEmail(
+    {
+      to: data.debtorEmail,
+      subject,
+      html,
+      from: 'support@haladik.com',
+      fromName: data.clientName,
+    },
+    apiKey
+  );
+}
