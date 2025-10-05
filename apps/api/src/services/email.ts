@@ -361,3 +361,261 @@ export async function sendDebtNotification(
     apiKey
   );
 }
+
+interface PaymentPlanNotificationData {
+  debtorName: string;
+  debtorEmail: string;
+  clientName: string;
+  referenceNumber: string;
+  planDetails: {
+    totalAmount: number;
+    downPayment: number;
+    installmentAmount: number;
+    installmentCount: number;
+    currency: string;
+  };
+  portalLink?: string;
+  language?: string;
+}
+
+/**
+ * Generate payment plan approval email HTML
+ */
+export function generatePaymentPlanApprovalEmail(data: PaymentPlanNotificationData): string {
+  const lang = data.language || 'cs';
+
+  const translations = {
+    cs: {
+      subject: 'Schválení splatkového kalendáře',
+      greeting: 'Vážený pane/paní',
+      intro: 'Vaše žádost o splátkový kalendář byla schválena',
+      plan_details: 'Detaily splatkového kalendáře',
+      total_amount: 'Celková částka',
+      down_payment: 'Akontace',
+      installment: 'Měsíční splátka',
+      installment_count: 'Počet splátek',
+      portal_button: 'Zobrazit splátkový kalendář',
+      reminder: 'Pamatujte, že nezaplacení splátky může vést k akceleraci celého dluhu.',
+      regards: 'S pozdravem',
+    },
+    en: {
+      subject: 'Payment Plan Approved',
+      greeting: 'Dear Sir/Madam',
+      intro: 'Your payment plan request has been approved',
+      plan_details: 'Payment Plan Details',
+      total_amount: 'Total Amount',
+      down_payment: 'Down Payment',
+      installment: 'Monthly Installment',
+      installment_count: 'Number of Installments',
+      portal_button: 'View Payment Plan',
+      reminder: 'Remember that missing a payment may result in acceleration of the full debt.',
+      regards: 'Best regards',
+    },
+  };
+
+  const t = translations[lang as keyof typeof translations] || translations.cs;
+
+  return `
+<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${t.subject}</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #10b981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+    .details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb; }
+    .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+    .detail-row:last-child { border-bottom: none; }
+    .label { color: #6b7280; font-weight: 600; }
+    .value { color: #111827; font-weight: 700; }
+    .amount { font-size: 24px; color: #10b981; }
+    .button { display: inline-block; background-color: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: 600; }
+    .warning { background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; border-radius: 4px; color: #7f1d1d; }
+    .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>✓ ${t.subject}</h1>
+  </div>
+  <div class="content">
+    <p><strong>${t.greeting} ${data.debtorName},</strong></p>
+    <p>${t.intro} ${data.referenceNumber}.</p>
+
+    <div class="details">
+      <h3>${t.plan_details}</h3>
+      <div class="detail-row">
+        <span class="label">${t.total_amount}:</span>
+        <span class="value amount">${(data.planDetails.totalAmount / 100).toLocaleString()} ${data.planDetails.currency}</span>
+      </div>
+      ${data.planDetails.downPayment > 0 ? `
+      <div class="detail-row">
+        <span class="label">${t.down_payment}:</span>
+        <span class="value">${(data.planDetails.downPayment / 100).toLocaleString()} ${data.planDetails.currency}</span>
+      </div>
+      ` : ''}
+      <div class="detail-row">
+        <span class="label">${t.installment}:</span>
+        <span class="value">${(data.planDetails.installmentAmount / 100).toLocaleString()} ${data.planDetails.currency}</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">${t.installment_count}:</span>
+        <span class="value">${data.planDetails.installmentCount}</span>
+      </div>
+    </div>
+
+    ${data.portalLink ? `
+    <div style="text-align: center;">
+      <a href="${data.portalLink}" class="button">${t.portal_button}</a>
+    </div>
+    ` : ''}
+
+    <div class="warning">
+      <strong>⚠️ ${t.reminder}</strong>
+    </div>
+
+    <p>${t.regards},<br><strong>${data.clientName}</strong></p>
+  </div>
+  <div class="footer">
+    <p>LexAI - Automated Debt Collection Platform</p>
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
+ * Generate payment plan rejection email HTML
+ */
+export function generatePaymentPlanRejectionEmail(data: PaymentPlanNotificationData & { rejectionReason: string }): string {
+  const lang = data.language || 'cs';
+
+  const translations = {
+    cs: {
+      subject: 'Zamítnutí splatkového kalendáře',
+      greeting: 'Vážený pane/paní',
+      intro: 'Vaše žádost o splátkový kalendář byla zamítnuta',
+      reason: 'Důvod zamítnutí',
+      next_steps: 'Další možnosti',
+      contact: 'Prosím kontaktujte nás pro projednání alternativních možností úhrady.',
+      portal_button: 'Zobrazit pohledávku',
+      regards: 'S pozdravem',
+    },
+    en: {
+      subject: 'Payment Plan Rejected',
+      greeting: 'Dear Sir/Madam',
+      intro: 'Your payment plan request has been rejected',
+      reason: 'Rejection Reason',
+      next_steps: 'Next Steps',
+      contact: 'Please contact us to discuss alternative payment options.',
+      portal_button: 'View Debt',
+      regards: 'Best regards',
+    },
+  };
+
+  const t = translations[lang as keyof typeof translations] || translations.cs;
+
+  return `
+<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${t.subject}</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+    .details { background-color: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626; }
+    .button { display: inline-block; background-color: #3b82f6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: 600; }
+    .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>✗ ${t.subject}</h1>
+  </div>
+  <div class="content">
+    <p><strong>${t.greeting} ${data.debtorName},</strong></p>
+    <p>${t.intro} ${data.referenceNumber}.</p>
+
+    <div class="details">
+      <h3>${t.reason}:</h3>
+      <p>${data.rejectionReason}</p>
+    </div>
+
+    <h3>${t.next_steps}:</h3>
+    <p>${t.contact}</p>
+
+    ${data.portalLink ? `
+    <div style="text-align: center;">
+      <a href="${data.portalLink}" class="button">${t.portal_button}</a>
+    </div>
+    ` : ''}
+
+    <p>${t.regards},<br><strong>${data.clientName}</strong></p>
+  </div>
+  <div class="footer">
+    <p>LexAI - Automated Debt Collection Platform</p>
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
+ * Send payment plan approval email
+ */
+export async function sendPaymentPlanApprovalEmail(
+  data: PaymentPlanNotificationData,
+  apiKey: string
+): Promise<{ success: boolean; error?: string }> {
+  const html = generatePaymentPlanApprovalEmail(data);
+  const lang = data.language || 'cs';
+
+  const subjects = {
+    cs: `Schválení splatkového kalendáře - ${data.referenceNumber}`,
+    en: `Payment Plan Approved - ${data.referenceNumber}`,
+  };
+
+  return sendEmail(
+    {
+      to: data.debtorEmail,
+      subject: subjects[lang as keyof typeof subjects] || subjects.cs,
+      html,
+      from: 'support@haladik.com',
+      fromName: data.clientName,
+    },
+    apiKey
+  );
+}
+
+/**
+ * Send payment plan rejection email
+ */
+export async function sendPaymentPlanRejectionEmail(
+  data: PaymentPlanNotificationData & { rejectionReason: string },
+  apiKey: string
+): Promise<{ success: boolean; error?: string }> {
+  const html = generatePaymentPlanRejectionEmail(data);
+  const lang = data.language || 'cs';
+
+  const subjects = {
+    cs: `Zamítnutí splatkového kalendáře - ${data.referenceNumber}`,
+    en: `Payment Plan Rejected - ${data.referenceNumber}`,
+  };
+
+  return sendEmail(
+    {
+      to: data.debtorEmail,
+      subject: subjects[lang as keyof typeof subjects] || subjects.cs,
+      html,
+      from: 'support@haladik.com',
+      fromName: data.clientName,
+    },
+    apiKey
+  );
+}

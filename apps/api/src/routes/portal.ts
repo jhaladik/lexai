@@ -80,6 +80,33 @@ portalRoutes.get('/:token', async (c) => {
       .bind(now, portalToken.pt_id)
       .run();
 
+    // Get payment plan if exists
+    const paymentPlan = await db
+      .prepare(`
+        SELECT
+          pp.*
+        FROM payment_plans pp
+        WHERE pp.debt_id = ?
+        ORDER BY pp.created_at DESC
+        LIMIT 1
+      `)
+      .bind(portalToken.debt_id)
+      .first();
+
+    // Get installments if payment plan exists
+    let installments = [];
+    if (paymentPlan && paymentPlan.id) {
+      const installmentsResult = await db
+        .prepare(`
+          SELECT * FROM installments
+          WHERE payment_plan_id = ?
+          ORDER BY installment_number ASC
+        `)
+        .bind(paymentPlan.id)
+        .all();
+      installments = installmentsResult.results || [];
+    }
+
     // Return debt details
     const debtorName = portalToken.debtor_type === 'business'
       ? portalToken.debtor_company
@@ -110,6 +137,8 @@ portalRoutes.get('/:token', async (c) => {
           postal_code: portalToken.client_postal_code,
           email: portalToken.client_email,
         },
+        payment_plan: paymentPlan || null,
+        installments: installments,
         portal_info: {
           token,
           expires_at: portalToken.expires_at,

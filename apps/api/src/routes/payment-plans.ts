@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../middleware/auth';
+import { sendPaymentPlanApprovalEmail, sendPaymentPlanRejectionEmail } from '../services/email';
 
 export const paymentPlanRoutes = new Hono();
 
@@ -238,12 +239,24 @@ paymentPlanRoutes.put('/:id/approve', requireAuth, async (c) => {
   try {
     const now = Date.now();
 
-    // Get plan details
+    // Get plan details with debtor email
     const plan = await db
       .prepare(`
-        SELECT pp.*, d.debtor_id, d.client_id
+        SELECT
+          pp.*,
+          d.debtor_id,
+          d.client_id,
+          d.reference_number,
+          dt.email as debtor_email,
+          dt.type as debtor_type,
+          dt.first_name,
+          dt.last_name,
+          dt.company_name,
+          c.company_name as client_company
         FROM payment_plans pp
         LEFT JOIN debts d ON pp.debt_id = d.id
+        LEFT JOIN debtors dt ON d.debtor_id = dt.id
+        LEFT JOIN clients c ON d.client_id = c.id
         WHERE pp.id = ? AND pp.tenant_id = ?
       `)
       .bind(planId, tenantId)
@@ -311,23 +324,56 @@ paymentPlanRoutes.put('/:id/approve', requireAuth, async (c) => {
       .bind(plan.debt_id)
       .run();
 
+    // Get portal token for debtor
+    const portalToken = await db
+      .prepare(`SELECT token FROM portal_tokens WHERE debt_id = ? ORDER BY created_at DESC LIMIT 1`)
+      .bind(plan.debt_id)
+      .first();
+
+    const portalLink = portalToken ? `https://lexai.pages.dev/portal/${portalToken.token}` : undefined;
+
+    // Send approval email to debtor
+    const smtp2goApiKey = c.env.SMTP2GO_API_KEY;
+    if (smtp2goApiKey && plan.debtor_email) {
+      const debtorName = plan.debtor_type === 'business'
+        ? plan.debtor_company
+        : `${plan.debtor_first_name} ${plan.debtor_last_name}`;
+
+      await sendPaymentPlanApprovalEmail({
+        debtorName,
+        debtorEmail: plan.debtor_email,
+        clientName: plan.client_company || 'Client',
+        referenceNumber: plan.reference_number || plan.debt_id,
+        planDetails: {
+          totalAmount: plan.total_amount,
+          downPayment: plan.down_payment || 0,
+          installmentAmount: plan.installment_amount,
+          installmentCount: plan.installment_count,
+          currency: 'CZK',
+        },
+        portalLink,
+        language: 'cs',
+      }, smtp2goApiKey);
+    }
+
     // Create communication record
     const commId = `comm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     await db
       .prepare(`
         INSERT INTO communications (
           id, tenant_id, debt_id, type, direction, subject, content,
-          status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          to_email, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         commId,
         tenantId,
         plan.debt_id,
-        'portal_message',
+        'email',
         'outbound',
         'Schválení splatkového kalendáře',
         `Payment plan approved by client. ${plan.installment_count} installments of ${plan.installment_amount / 100} CZK.`,
+        plan.debtor_email,
         'sent',
         now
       )
@@ -338,7 +384,8 @@ paymentPlanRoutes.put('/:id/approve', requireAuth, async (c) => {
         message: 'Payment plan approved successfully',
         payment_plan_id: planId,
         status: 'active',
-        installments_created: plan.installment_count
+        installments_created: plan.installment_count,
+        email_sent: !!smtp2goApiKey && !!plan.debtor_email
       }
     });
 
@@ -363,9 +410,20 @@ paymentPlanRoutes.put('/:id/reject', requireAuth, async (c) => {
 
     const plan = await db
       .prepare(`
-        SELECT pp.*, d.debtor_id
+        SELECT
+          pp.*,
+          d.debtor_id,
+          d.reference_number,
+          dt.email as debtor_email,
+          dt.type as debtor_type,
+          dt.first_name,
+          dt.last_name,
+          dt.company_name,
+          c.company_name as client_company
         FROM payment_plans pp
         LEFT JOIN debts d ON pp.debt_id = d.id
+        LEFT JOIN debtors dt ON d.debtor_id = dt.id
+        LEFT JOIN clients c ON d.client_id = c.id
         WHERE pp.id = ? AND pp.tenant_id = ?
       `)
       .bind(planId, tenantId)
@@ -390,23 +448,57 @@ paymentPlanRoutes.put('/:id/reject', requireAuth, async (c) => {
       .bind(plan.debt_id)
       .run();
 
+    // Get portal token for debtor
+    const portalToken = await db
+      .prepare(`SELECT token FROM portal_tokens WHERE debt_id = ? ORDER BY created_at DESC LIMIT 1`)
+      .bind(plan.debt_id)
+      .first();
+
+    const portalLink = portalToken ? `https://lexai.pages.dev/portal/${portalToken.token}` : undefined;
+
+    // Send rejection email to debtor
+    const smtp2goApiKey = c.env.SMTP2GO_API_KEY;
+    if (smtp2goApiKey && plan.debtor_email && reason) {
+      const debtorName = plan.debtor_type === 'business'
+        ? plan.debtor_company
+        : `${plan.debtor_first_name} ${plan.debtor_last_name}`;
+
+      await sendPaymentPlanRejectionEmail({
+        debtorName,
+        debtorEmail: plan.debtor_email,
+        clientName: plan.client_company || 'Client',
+        referenceNumber: plan.reference_number || plan.debt_id,
+        planDetails: {
+          totalAmount: plan.total_amount,
+          downPayment: plan.down_payment || 0,
+          installmentAmount: plan.installment_amount,
+          installmentCount: plan.installment_count,
+          currency: 'CZK',
+        },
+        rejectionReason: reason,
+        portalLink,
+        language: 'cs',
+      }, smtp2goApiKey);
+    }
+
     // Create communication record
     const commId = `comm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     await db
       .prepare(`
         INSERT INTO communications (
           id, tenant_id, debt_id, type, direction, subject, content,
-          status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          to_email, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         commId,
         tenantId,
         plan.debt_id,
-        'portal_message',
+        'email',
         'outbound',
         'Zamítnutí splatkového kalendáře',
         `Payment plan rejected by client. Reason: ${reason || 'Not provided'}`,
+        plan.debtor_email,
         'sent',
         now
       )
@@ -416,7 +508,8 @@ paymentPlanRoutes.put('/:id/reject', requireAuth, async (c) => {
       data: {
         message: 'Payment plan rejected',
         payment_plan_id: planId,
-        status: 'cancelled'
+        status: 'cancelled',
+        email_sent: !!smtp2goApiKey && !!plan.debtor_email && !!reason
       }
     });
 

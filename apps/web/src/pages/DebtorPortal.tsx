@@ -74,7 +74,7 @@ export function DebtorPortal() {
     return null;
   }
 
-  const { debt, client, portal_info } = data;
+  const { debt, client, portal_info, payment_plan, installments } = data;
 
   const handlePaymentSuccess = async () => {
     setShowPaymentModal(false);
@@ -205,8 +205,114 @@ export function DebtorPortal() {
           </div>
         )}
 
+        {/* Payment Plan Status */}
+        {payment_plan && (
+          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Splátkový kalendář</h2>
+
+            <div className={`mb-4 p-4 rounded-lg border-2 ${payment_plan.status === 'proposed' ? 'bg-yellow-50 border-yellow-300' : payment_plan.status === 'active' ? 'bg-green-50 border-green-300' : payment_plan.status === 'cancelled' ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-300'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-lg font-bold">Status:</span>
+                <span className={`px-4 py-1 rounded-full text-sm font-semibold ${
+                  payment_plan.status === 'proposed' ? 'bg-yellow-200 text-yellow-900' :
+                  payment_plan.status === 'active' ? 'bg-green-200 text-green-900' :
+                  payment_plan.status === 'cancelled' ? 'bg-red-200 text-red-900' :
+                  payment_plan.status === 'completed' ? 'bg-blue-200 text-blue-900' :
+                  'bg-gray-200 text-gray-900'
+                }`}>
+                  {payment_plan.status === 'proposed' ? '⏳ Čeká na schválení' :
+                   payment_plan.status === 'active' ? '✓ Schváleno' :
+                   payment_plan.status === 'cancelled' ? '✗ Zamítnuto' :
+                   payment_plan.status === 'completed' ? '✓ Dokončeno' :
+                   payment_plan.status}
+                </span>
+              </div>
+
+              {payment_plan.status === 'proposed' && (
+                <p className="text-sm text-yellow-800 mt-2">
+                  Váš návrh na splátkový kalendář byl odeslán a čeká na posouzení věřitelem.
+                </p>
+              )}
+
+              {payment_plan.status === 'active' && (
+                <p className="text-sm text-green-800 mt-2">
+                  Váš splátkový kalendář byl schválen. Platby splácejte včas dle harmonogramu níže.
+                </p>
+              )}
+
+              {payment_plan.status === 'cancelled' && (
+                <p className="text-sm text-red-800 mt-2">
+                  Váš návrh splatkového kalendáře byl zamítnut. Můžete navrhnout jiný plán nebo kontaktovat věřitele.
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-gray-600">Celková částka</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {formatCurrency(payment_plan.total_amount, 'CZK')}
+                </p>
+              </div>
+              {payment_plan.down_payment > 0 && (
+                <div>
+                  <p className="text-sm text-gray-600">Akontace</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {formatCurrency(payment_plan.down_payment, 'CZK')}
+                  </p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm text-gray-600">Měsíční splátka</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {formatCurrency(payment_plan.installment_amount, 'CZK')}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Počet splátek</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {payment_plan.installment_count}x
+                </p>
+              </div>
+            </div>
+
+            {/* Installments Schedule */}
+            {installments && installments.length > 0 && (
+              <div className="mt-6">
+                <h3 className="font-semibold text-gray-900 mb-3">Harmonogram splátek</h3>
+                <div className="space-y-2">
+                  {installments.map((inst: any) => (
+                    <div key={inst.id} className={`flex items-center justify-between p-3 rounded-lg ${
+                      inst.paid ? 'bg-green-50' : inst.status === 'overdue' ? 'bg-red-50' : 'bg-gray-50'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-gray-700">#{inst.installment_number}</span>
+                        <span className="text-sm text-gray-600">
+                          Splatnost: {new Date(inst.due_date).toLocaleDateString('cs-CZ')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold">
+                          {formatCurrency(inst.amount, 'CZK')}
+                        </span>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                          inst.paid ? 'bg-green-200 text-green-900' :
+                          inst.status === 'overdue' ? 'bg-red-200 text-red-900' :
+                          'bg-gray-200 text-gray-700'
+                        }`}>
+                          {inst.paid ? '✓ Zaplaceno' : inst.status === 'overdue' ? 'Po splatnosti' : 'Čeká'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
-        {debt.status !== 'resolved_paid' && (
+        {debt.status !== 'resolved_paid' && !payment_plan && (
           <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Možnosti řešení</h2>
 
@@ -241,6 +347,31 @@ export function DebtorPortal() {
                 <strong>Upozornění:</strong> Nezaplacení pohledávky může vést k dalším právním krokům včetně
                 zvýšení dlužné částky o úroky z prodlení a soudní vymáhání.
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Show only payment option if payment plan is cancelled */}
+        {payment_plan && payment_plan.status === 'cancelled' && debt.status !== 'resolved_paid' && (
+          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Možnosti řešení</h2>
+
+            <div className="space-y-4">
+              <button
+                onClick={() => setShowPaymentModal(true)}
+                className="w-full bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition flex items-center justify-between"
+              >
+                <span className="font-semibold text-lg">✓ Zaplatit celou částku</span>
+                <span className="text-2xl">→</span>
+              </button>
+
+              <button
+                onClick={() => setShowPaymentPlanModal(true)}
+                className="w-full bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition flex items-center justify-between"
+              >
+                <span className="font-semibold text-lg">📅 Navrhnout nový splátkový kalendář</span>
+                <span className="text-2xl">→</span>
+              </button>
             </div>
           </div>
         )}
