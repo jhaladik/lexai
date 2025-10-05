@@ -15,11 +15,12 @@ export function Layout() {
     // Clear any local auth state
     localStorage.removeItem('auth_token');
 
-    // Redirect to Cloudflare Access logout endpoint
+    // Redirect to Cloudflare Access logout endpoint with return URL
     // This properly terminates the Cloudflare Access session
-    // The endpoint will clear all cookies and invalidate the session
+    // After logout, user will be redirected back to login page
     const teamName = 'lexai'; // Your Cloudflare Access team name
-    const logoutUrl = `https://${teamName}.cloudflareaccess.com/cdn-cgi/access/logout`;
+    const returnUrl = encodeURIComponent('https://lexai.pages.dev/login');
+    const logoutUrl = `https://${teamName}.cloudflareaccess.com/cdn-cgi/access/logout?returnTo=${returnUrl}`;
 
     window.location.href = logoutUrl;
   };
