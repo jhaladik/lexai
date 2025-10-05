@@ -14,8 +14,14 @@ export function Layout() {
   const handleLogout = () => {
     // Clear any local auth state
     localStorage.removeItem('auth_token');
-    // Redirect to login
-    window.location.href = '/login';
+
+    // Clear Cloudflare Access JWT cookie
+    document.cookie = 'CF_Authorization=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+
+    // Redirect to Cloudflare Access logout endpoint, then back to login
+    // This ensures the JWT is properly invalidated on Cloudflare's side
+    const cfLogoutUrl = '/cdn-cgi/access/logout';
+    window.location.href = cfLogoutUrl;
   };
 
   // Role-based navigation items
