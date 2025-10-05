@@ -18,7 +18,7 @@ export function Layout() {
     // Redirect to Cloudflare Access logout endpoint
     // This properly terminates the Cloudflare Access session
     // The endpoint will clear all cookies and invalidate the session
-    const teamName = 'jhaladik'; // Your Cloudflare Access team name
+    const teamName = 'lexai'; // Your Cloudflare Access team name
     const logoutUrl = `https://${teamName}.cloudflareaccess.com/cdn-cgi/access/logout`;
 
     window.location.href = logoutUrl;
