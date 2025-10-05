@@ -398,6 +398,19 @@ export const api = {
       }),
   },
 
+  // Communications
+  communications: {
+    list: (params?: { debtor_id?: string; debt_id?: string; type?: string; status?: string; limit?: number; offset?: number }) => {
+      const query = new URLSearchParams(params as Record<string, string>).toString();
+      return apiRequest<any>(`/api/v1/communications?${query}`);
+    },
+    get: (id: string) => apiRequest<any>(`/api/v1/communications/${id}`),
+    getForDebtor: (debtorId: string, limit?: number) => {
+      const query = limit ? `?limit=${limit}` : '';
+      return apiRequest<any[]>(`/api/v1/communications/debtor/${debtorId}${query}`);
+    },
+  },
+
   // Integrations
   integrations: {
     ares: (ico: string) => apiRequest<{

@@ -95,6 +95,10 @@ app.route('/api/v1/disputes', disputeRoutes);
 import { attorneyRoutes } from './routes/attorney';
 app.route('/api/v1/attorney', attorneyRoutes);
 
+// Communication routes (protected)
+import { communicationRoutes } from './routes/communications';
+app.route('/api/v1/communications', communicationRoutes);
+
 // 404 handler
 app.notFound((c) => {
   return c.json({ error: 'Not Found' }, 404);

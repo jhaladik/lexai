@@ -25,6 +25,12 @@ export function Debtors() {
     queryFn: () => api.debts.list(),
   });
 
+  const { data: communications } = useQuery({
+    queryKey: ['communications', selectedDebtor?.id],
+    queryFn: () => api.communications.getForDebtor(selectedDebtor!.id, 5),
+    enabled: !!selectedDebtor,
+  });
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => api.debtors.update(id, data),
     onSuccess: () => {
@@ -335,6 +341,57 @@ export function Debtors() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Communications Timeline */}
+        <div className="bg-white rounded-lg shadow mt-6">
+          <div className="p-6 border-b flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Recent Communications</h2>
+            <a
+              href={`/communications?debtor_id=${selectedDebtor.id}`}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              View All →
+            </a>
+          </div>
+
+          {communications && communications.length > 0 ? (
+            <div className="p-6">
+              <div className="space-y-4">
+                {communications.map((comm: any) => (
+                  <div key={comm.id} className="flex gap-4 items-start">
+                    <div className="text-2xl">
+                      {comm.type === 'email' ? '📧' : comm.type === 'sms' ? '💬' : '🔔'}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{comm.subject}</p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {comm.debt_reference} • {comm.to_email}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          comm.status === 'sent' ? 'bg-green-100 text-green-800' :
+                          comm.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {comm.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {new Date(comm.created_at).toLocaleString('cs-CZ')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 text-center text-gray-500">
+              No communications sent yet
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-lg shadow mt-6">
